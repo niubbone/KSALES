@@ -6,68 +6,104 @@
   <title>KSales</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     [x-cloak] { display: none !important; }
-    body { font-family: 'Inter', system-ui, sans-serif; }
+    body { font-family: system-ui, sans-serif; }
+    .tab-active { border-bottom: 2px solid #1c3557; color: #1c3557; font-weight: 600; }
   </style>
 </head>
-<body class="bg-gray-50 text-gray-800" x-data="app()" x-init="init()" x-cloak>
+<body class="bg-gray-50 text-gray-800 min-h-screen" x-data="app()" x-init="init()" x-cloak>
 
   <!-- Navbar -->
-  <nav class="bg-[#1c3557] text-white px-6 py-3 flex items-center gap-6 shadow">
-    <span class="font-bold text-lg tracking-wide">KSales</span>
-    <button @click="sezione='contratti'" :class="sezione==='contratti' ? 'underline' : 'opacity-70 hover:opacity-100'" class="text-sm">Contratti</button>
-    <button @click="sezione='clienti'"   :class="sezione==='clienti'   ? 'underline' : 'opacity-70 hover:opacity-100'" class="text-sm">Clienti</button>
+  <nav class="bg-[#1c3557] text-white px-6 py-3 flex items-center gap-6 shadow sticky top-0 z-10">
+    <span class="font-bold text-base tracking-wide">KSales</span>
+    <button @click="navTo('contratti')" :class="vista==='contratti' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm">Contratti</button>
+    <button @click="navTo('clienti')"   :class="vista==='clienti'||vista==='cliente-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm">Clienti</button>
   </nav>
 
-  <!-- Loader -->
-  <div x-show="loading" class="flex items-center justify-center h-48 text-gray-400">
-    <svg class="animate-spin h-8 w-8 mr-3" viewBox="0 0 24 24" fill="none">
+  <!-- Breadcrumb -->
+  <div x-show="vista !== 'contratti' && vista !== 'clienti'" class="bg-white border-b px-6 py-2 text-sm text-gray-500 flex items-center gap-2">
+    <template x-if="vista === 'cliente-detail'">
+      <span>
+        <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
+        <span class="mx-1">›</span>
+        <span class="text-gray-800 font-medium" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></span>
+      </span>
+    </template>
+    <template x-if="vista === 'contratto-detail'">
+      <span class="flex items-center gap-1">
+        <template x-if="clienteSelezionato">
+          <span class="flex items-center gap-1">
+            <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
+            <span class="mx-1">›</span>
+            <button @click="navTo('cliente-detail')" class="hover:text-[#1c3557]" x-text="clienteSelezionato.ragione_sociale"></button>
+            <span class="mx-1">›</span>
+          </span>
+        </template>
+        <template x-if="!clienteSelezionato">
+          <span class="flex items-center gap-1">
+            <button @click="navTo('contratti')" class="hover:text-[#1c3557]">Contratti</button>
+            <span class="mx-1">›</span>
+          </span>
+        </template>
+        <span class="text-gray-800 font-medium" x-text="contrattoDetail && contrattoDetail.contratto && contrattoDetail.contratto.num_contratto"></span>
+      </span>
+    </template>
+  </div>
+
+  <!-- Loader globale -->
+  <div x-show="loading" class="flex items-center justify-center h-48 text-gray-400 gap-3">
+    <svg class="animate-spin h-6 w-6" viewBox="0 0 24 24" fill="none">
       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
     </svg>
     Caricamento…
   </div>
+  <div x-show="errore" class="m-6 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm" x-text="errore"></div>
 
-  <!-- Errore -->
-  <div x-show="errore" class="m-6 p-4 bg-red-50 border border-red-300 rounded text-red-700 text-sm" x-text="errore"></div>
-
-  <!-- Contratti -->
-  <section x-show="!loading && sezione==='contratti'" class="p-6">
+  <!-- ── VISTA: CONTRATTI ─────────────────────────────────────── -->
+  <section x-show="!loading && vista==='contratti'" class="p-6">
     <div class="flex items-center gap-4 mb-4">
-      <h1 class="text-xl font-semibold">Contratti</h1>
+      <h1 class="text-lg font-semibold">Contratti</h1>
       <input x-model="filtroContratti" type="search" placeholder="Cerca cliente, ordine, agenzia…"
              class="ml-auto border rounded px-3 py-1.5 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-[#1c3557]">
     </div>
     <div class="overflow-x-auto rounded shadow-sm">
       <table class="min-w-full text-sm bg-white">
         <thead>
-          <tr class="bg-[#1c3557] text-white">
-            <template x-for="h in ['Ordine','Contratto','Cliente','Agenzia','Data Firma','Durata','Tipo','Stato']">
-              <th class="px-3 py-2 text-left font-medium whitespace-nowrap" x-text="h"></th>
-            </template>
+          <tr class="bg-[#1c3557] text-white text-left">
+            <th class="px-3 py-2 font-medium">Ordine</th>
+            <th class="px-3 py-2 font-medium">Contratto</th>
+            <th class="px-3 py-2 font-medium">Cliente</th>
+            <th class="px-3 py-2 font-medium">Agenzia</th>
+            <th class="px-3 py-2 font-medium">Data Firma</th>
+            <th class="px-3 py-2 font-medium text-center">Durata</th>
+            <th class="px-3 py-2 font-medium">Tipo</th>
+            <th class="px-3 py-2 font-medium">Stato</th>
           </tr>
         </thead>
         <tbody>
           <template x-for="(c, i) in contrattiFiltrati" :key="i">
-            <tr :class="i%2===0 ? 'bg-white' : 'bg-gray-50'" class="border-b border-gray-100 hover:bg-blue-50">
-              <td class="px-3 py-2 whitespace-nowrap font-mono text-xs" x-text="c.num_ordine_wki"></td>
-              <td class="px-3 py-2 whitespace-nowrap font-mono text-xs" x-text="c.num_contratto"></td>
-              <td class="px-3 py-2" x-text="c.ragione_sociale"></td>
-              <td class="px-3 py-2 whitespace-nowrap" x-text="c.codice_agenzia"></td>
-              <td class="px-3 py-2 whitespace-nowrap text-xs" x-text="fmtData(c.data_firma)"></td>
-              <td class="px-3 py-2 text-center" x-text="c.durata_mesi ? c.durata_mesi+'m' : ''"></td>
+            <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
+                @click="openContratto(c.num_ordine_wki, null)">
+              <td class="px-3 py-2 font-mono text-xs text-blue-700 hover:underline" x-text="c.num_ordine_wki"></td>
+              <td class="px-3 py-2 font-mono text-xs" x-text="c.num_contratto"></td>
+              <td class="px-3 py-2 font-medium" x-text="c.ragione_sociale"></td>
+              <td class="px-3 py-2 text-xs" x-text="c.codice_agenzia"></td>
+              <td class="px-3 py-2 text-xs" x-text="fmtData(c.data_firma)"></td>
+              <td class="px-3 py-2 text-center text-xs" x-text="c.durata_mesi || ''"></td>
               <td class="px-3 py-2">
-                <span :class="c.tipo==='NUOVO' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'"
+                <span :class="c.tipo==='NUOVO'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'"
                       class="px-2 py-0.5 rounded text-xs font-medium" x-text="c.tipo"></span>
               </td>
               <td class="px-3 py-2">
-                <span :class="c.stato==='DISDETTO' ? 'bg-gray-200 text-gray-500' : 'bg-green-100 text-green-700'"
+                <span :class="c.stato==='DISDETTO'?'bg-gray-200 text-gray-500':'bg-green-100 text-green-700'"
                       class="px-2 py-0.5 rounded text-xs font-medium" x-text="c.stato||'ATTIVO'"></span>
               </td>
             </tr>
           </template>
-          <tr x-show="contrattiFiltrati.length===0 && !loading">
+          <tr x-show="contrattiFiltrati.length===0">
             <td colspan="8" class="px-3 py-6 text-center text-gray-400">Nessun contratto trovato</td>
           </tr>
         </tbody>
@@ -76,34 +112,41 @@
     <p class="text-xs text-gray-400 mt-2" x-text="contrattiFiltrati.length + ' / ' + contratti.length + ' contratti'"></p>
   </section>
 
-  <!-- Clienti -->
-  <section x-show="!loading && sezione==='clienti'" class="p-6">
+  <!-- ── VISTA: CLIENTI ──────────────────────────────────────── -->
+  <section x-show="!loading && vista==='clienti'" class="p-6">
     <div class="flex items-center gap-4 mb-4">
-      <h1 class="text-xl font-semibold">Clienti</h1>
+      <h1 class="text-lg font-semibold">Clienti</h1>
       <input x-model="filtroClienti" type="search" placeholder="Cerca cliente, città, provincia…"
              class="ml-auto border rounded px-3 py-1.5 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-[#1c3557]">
     </div>
     <div class="overflow-x-auto rounded shadow-sm">
       <table class="min-w-full text-sm bg-white">
         <thead>
-          <tr class="bg-[#1c3557] text-white">
-            <template x-for="h in ['Codice','Ragione Sociale','CAP','Città','Provincia','Agenzia']">
-              <th class="px-3 py-2 text-left font-medium whitespace-nowrap" x-text="h"></th>
-            </template>
+          <tr class="bg-[#1c3557] text-white text-left">
+            <th class="px-3 py-2 font-medium">Codice</th>
+            <th class="px-3 py-2 font-medium">Ragione Sociale</th>
+            <th class="px-3 py-2 font-medium">Città</th>
+            <th class="px-3 py-2 font-medium text-center">Prov</th>
+            <th class="px-3 py-2 font-medium">Agenzia</th>
+            <th class="px-3 py-2 font-medium text-center">Contratti</th>
           </tr>
         </thead>
         <tbody>
           <template x-for="(c, i) in clientiFiltrati" :key="i">
-            <tr :class="i%2===0 ? 'bg-white' : 'bg-gray-50'" class="border-b border-gray-100 hover:bg-blue-50">
+            <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
+                @click="openCliente(c)">
               <td class="px-3 py-2 font-mono text-xs" x-text="c.codice_cliente"></td>
-              <td class="px-3 py-2" x-text="c.ragione_sociale"></td>
-              <td class="px-3 py-2 text-xs" x-text="c.cap"></td>
+              <td class="px-3 py-2 font-medium text-blue-700 hover:underline" x-text="c.ragione_sociale"></td>
               <td class="px-3 py-2" x-text="c.citta"></td>
-              <td class="px-3 py-2 text-center" x-text="c.provincia"></td>
-              <td class="px-3 py-2 whitespace-nowrap" x-text="c.codice_agenzia"></td>
+              <td class="px-3 py-2 text-center text-xs" x-text="c.provincia"></td>
+              <td class="px-3 py-2 text-xs" x-text="c.codice_agenzia"></td>
+              <td class="px-3 py-2 text-center">
+                <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs"
+                      x-text="contrattiPerCliente(c.codice_cliente)"></span>
+              </td>
             </tr>
           </template>
-          <tr x-show="clientiFiltrati.length===0 && !loading">
+          <tr x-show="clientiFiltrati.length===0">
             <td colspan="6" class="px-3 py-6 text-center text-gray-400">Nessun cliente trovato</td>
           </tr>
         </tbody>
@@ -112,31 +155,277 @@
     <p class="text-xs text-gray-400 mt-2" x-text="clientiFiltrati.length + ' / ' + clienti.length + ' clienti'"></p>
   </section>
 
+  <!-- ── VISTA: CLIENTE DETAIL ───────────────────────────────── -->
+  <section x-show="!loading && vista==='cliente-detail' && clienteSelezionato" class="p-6">
+    <!-- Header cliente -->
+    <div class="bg-white rounded shadow-sm p-4 mb-6 flex flex-wrap gap-6 items-start">
+      <div>
+        <p class="text-xs text-gray-400 uppercase tracking-wide">Cliente</p>
+        <p class="text-xl font-bold text-[#1c3557]" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></p>
+      </div>
+      <div class="text-sm text-gray-600 grid grid-cols-2 gap-x-8 gap-y-1 mt-1">
+        <span class="text-gray-400">Codice</span>   <span x-text="clienteSelezionato && clienteSelezionato.codice_cliente"></span>
+        <span class="text-gray-400">Città</span>    <span x-text="clienteSelezionato && (clienteSelezionato.citta + ' (' + clienteSelezionato.provincia + ')')"></span>
+        <span class="text-gray-400">Agenzia</span>  <span x-text="clienteSelezionato && clienteSelezionato.codice_agenzia"></span>
+      </div>
+    </div>
+
+    <!-- Contratti del cliente -->
+    <h2 class="text-base font-semibold mb-3">Contratti</h2>
+    <div class="overflow-x-auto rounded shadow-sm">
+      <table class="min-w-full text-sm bg-white">
+        <thead>
+          <tr class="bg-[#1c3557] text-white text-left">
+            <th class="px-3 py-2 font-medium">Ordine</th>
+            <th class="px-3 py-2 font-medium">Contratto</th>
+            <th class="px-3 py-2 font-medium">Data Firma</th>
+            <th class="px-3 py-2 font-medium text-center">Durata</th>
+            <th class="px-3 py-2 font-medium">Tipo</th>
+            <th class="px-3 py-2 font-medium">Stato</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(c, i) in contrattiCliente" :key="i">
+            <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
+                @click="openContratto(c.num_ordine_wki, 'cliente-detail')">
+              <td class="px-3 py-2 font-mono text-xs text-blue-700" x-text="c.num_ordine_wki"></td>
+              <td class="px-3 py-2 font-mono text-xs" x-text="c.num_contratto"></td>
+              <td class="px-3 py-2 text-xs" x-text="fmtData(c.data_firma)"></td>
+              <td class="px-3 py-2 text-center text-xs" x-text="c.durata_mesi || ''"></td>
+              <td class="px-3 py-2">
+                <span :class="c.tipo==='NUOVO'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'"
+                      class="px-2 py-0.5 rounded text-xs font-medium" x-text="c.tipo"></span>
+              </td>
+              <td class="px-3 py-2">
+                <span :class="c.stato==='DISDETTO'?'bg-gray-200 text-gray-500':'bg-green-100 text-green-700'"
+                      class="px-2 py-0.5 rounded text-xs font-medium" x-text="c.stato||'ATTIVO'"></span>
+              </td>
+            </tr>
+          </template>
+          <tr x-show="contrattiCliente.length===0">
+            <td colspan="6" class="px-3 py-6 text-center text-gray-400">Nessun contratto trovato per questo cliente</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── VISTA: CONTRATTO DETAIL ─────────────────────────────── -->
+  <section x-show="!loading && vista==='contratto-detail'" class="p-6">
+
+    <!-- Loader dettaglio -->
+    <div x-show="loadingDetail" class="flex items-center justify-center h-32 text-gray-400 gap-3">
+      <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+      Caricamento dettaglio…
+    </div>
+    <div x-show="erroreDetail" class="p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm mb-4" x-text="erroreDetail"></div>
+
+    <template x-if="!loadingDetail && contrattoDetail">
+      <div>
+        <!-- Header contratto -->
+        <div class="bg-white rounded shadow-sm p-4 mb-6 flex flex-wrap gap-6 items-start">
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Contratto</p>
+            <p class="text-xl font-bold text-[#1c3557]" x-text="contrattoDetail.contratto && contrattoDetail.contratto.num_contratto || contrattoDetail.contratto && contrattoDetail.contratto.num_ordine_wki"></p>
+          </div>
+          <div class="text-sm text-gray-600 grid grid-cols-2 gap-x-8 gap-y-1 mt-1" x-show="contrattoDetail.contratto">
+            <span class="text-gray-400">Cliente</span>     <span class="font-medium" x-text="contrattoDetail.contratto && contrattoDetail.contratto.ragione_sociale"></span>
+            <span class="text-gray-400">Data firma</span>  <span x-text="fmtData(contrattoDetail.contratto && contrattoDetail.contratto.data_firma)"></span>
+            <span class="text-gray-400">Agenzia</span>     <span x-text="contrattoDetail.contratto && contrattoDetail.contratto.codice_agenzia"></span>
+            <span class="text-gray-400">Tipo</span>        <span x-text="contrattoDetail.contratto && contrattoDetail.contratto.tipo"></span>
+            <span class="text-gray-400">Durata</span>      <span x-text="(contrattoDetail.contratto && contrattoDetail.contratto.durata_mesi) ? contrattoDetail.contratto.durata_mesi + ' mesi' : ''"></span>
+            <span class="text-gray-400">Stato</span>       <span x-text="contrattoDetail.contratto && (contrattoDetail.contratto.stato || 'ATTIVO')"></span>
+          </div>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="flex border-b mb-6 bg-white rounded-t shadow-sm">
+          <button @click="switchSubTab('composizione')"
+                  :class="subTab==='composizione' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                  class="px-6 py-3 text-sm">Composizione</button>
+          <button @click="switchSubTab('economica')"
+                  :class="subTab==='economica' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                  class="px-6 py-3 text-sm">Situazione Economica</button>
+        </div>
+
+        <!-- TAB: Composizione -->
+        <div x-show="subTab==='composizione'">
+          <div class="overflow-x-auto rounded shadow-sm">
+            <table class="min-w-full text-sm bg-white">
+              <thead>
+                <tr class="bg-[#1c3557] text-white text-left">
+                  <th class="px-3 py-2 font-medium">Codice</th>
+                  <th class="px-3 py-2 font-medium">Prodotto</th>
+                  <th class="px-3 py-2 font-medium text-right">Imponibile</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(m, i) in contrattoDetail.composizione" :key="i">
+                  <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100">
+                    <td class="px-3 py-2 font-mono text-xs" x-text="m.cod_materiale"></td>
+                    <td class="px-3 py-2" x-text="m.desc_materiale"></td>
+                    <td class="px-3 py-2 text-right font-medium" x-text="m.imponibile ? fmtEuro(m.imponibile) : '—'"></td>
+                  </tr>
+                </template>
+                <tr x-show="!contrattoDetail.composizione || contrattoDetail.composizione.length===0">
+                  <td colspan="3" class="px-3 py-6 text-center text-gray-400">Nessun prodotto trovato nei rendiconti</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: Situazione Economica -->
+        <div x-show="subTab==='economica'" class="space-y-6">
+
+          <!-- Riepilogo finanziario -->
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-white rounded shadow-sm p-4 text-center">
+              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Provv. Attesa</p>
+              <p class="text-xl font-bold text-gray-700" x-text="fmtEuro(contrattoDetail.provv_attesa)"></p>
+            </div>
+            <div class="bg-white rounded shadow-sm p-4 text-center">
+              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Provv. Ricevuta</p>
+              <p class="text-xl font-bold text-gray-700" x-text="fmtEuro(contrattoDetail.provv_ricevuta)"></p>
+            </div>
+            <div class="rounded shadow-sm p-4 text-center"
+                 :class="contrattoDetail.saldo < -0.5 ? 'bg-yellow-50' : contrattoDetail.saldo > 0.5 ? 'bg-red-50' : 'bg-green-50'">
+              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Saldo</p>
+              <p class="text-xl font-bold"
+                 :class="contrattoDetail.saldo < -0.5 ? 'text-yellow-700' : contrattoDetail.saldo > 0.5 ? 'text-red-700' : 'text-green-700'"
+                 x-text="fmtEuro(contrattoDetail.saldo)"></p>
+              <p class="text-xs mt-1"
+                 :class="contrattoDetail.saldo < -0.5 ? 'text-yellow-600' : contrattoDetail.saldo > 0.5 ? 'text-red-500' : 'text-green-600'"
+                 x-text="contrattoDetail.saldo < -0.5 ? 'da ricevere' : contrattoDetail.saldo > 0.5 ? 'eccedenza' : 'in pari'"></p>
+            </div>
+          </div>
+
+          <!-- Provvigione firma -->
+          <div class="bg-white rounded shadow-sm p-4" x-show="contrattoDetail.firma">
+            <p class="text-xs text-gray-400 uppercase tracking-wide mb-3">Provvigione Firma</p>
+            <div class="flex items-center gap-6">
+              <div>
+                <span class="text-xs text-gray-400">Mese rendiconto</span>
+                <p class="font-semibold" x-text="contrattoDetail.firma && fmtMese(contrattoDetail.firma.mese)"></p>
+              </div>
+              <div>
+                <span class="text-xs text-gray-400">Importo ricevuto</span>
+                <p class="font-semibold text-green-700" x-text="contrattoDetail.firma && fmtEuro(contrattoDetail.firma.importo)"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grafico incassi mensili -->
+          <div class="bg-white rounded shadow-sm p-4" x-show="contrattoDetail.incassi && contrattoDetail.incassi.length > 0">
+            <p class="text-xs text-gray-400 uppercase tracking-wide mb-4">Incassi mensili</p>
+            <canvas id="chartIncassi" height="100"></canvas>
+          </div>
+
+          <!-- Tabella incassi con cumulativo -->
+          <div class="overflow-x-auto rounded shadow-sm" x-show="contrattoDetail.incassi && contrattoDetail.incassi.length > 0">
+            <table class="min-w-full text-sm bg-white">
+              <thead>
+                <tr class="bg-gray-100 text-gray-600 text-left">
+                  <th class="px-3 py-2 font-medium">Mese</th>
+                  <th class="px-3 py-2 font-medium text-right">Incasso</th>
+                  <th class="px-3 py-2 font-medium text-right">Cumulativo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(inc, i) in contrattoDetail.incassi" :key="i">
+                  <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100">
+                    <td class="px-3 py-1.5 text-xs" x-text="fmtMese(inc.mese)"></td>
+                    <td class="px-3 py-1.5 text-right" x-text="fmtEuro(inc.importo)"></td>
+                    <td class="px-3 py-1.5 text-right text-gray-500" x-text="fmtEuro(inc.cumulativo)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div x-show="!contrattoDetail.incassi || contrattoDetail.incassi.length===0"
+               class="bg-white rounded shadow-sm p-6 text-center text-gray-400 text-sm">
+            Nessun incasso registrato nei rendiconti
+          </div>
+
+        </div>
+      </div>
+    </template>
+  </section>
+
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script>
     function app() {
       return {
-        sezione: 'contratti',
-        loading: true,
-        errore: '',
-        contratti: [],
-        clienti: [],
-        filtroContratti: '',
-        filtroClienti: '',
+        vista:              'clienti',
+        subTab:             'composizione',
+        loading:            true,
+        loadingDetail:      false,
+        errore:             '',
+        erroreDetail:       '',
+        contratti:          [],
+        clienti:            [],
+        clienteSelezionato: null,
+        contrattoDetail:    null,
+        filtroContratti:    '',
+        filtroClienti:      '',
+        _chart:             null,
 
-        init() {
-          Promise.all([
-            API.getContratti(),
-            API.getClienti()
-          ]).then(([contratti, clienti]) => {
-            this.contratti = contratti;
-            this.clienti   = clienti;
-            this.loading   = false;
-          }).catch(err => {
-            this.errore  = 'Errore caricamento dati: ' + err;
+        async init() {
+          try {
+            var results = await Promise.all([API.getContratti(), API.getClienti()]);
+            this.contratti = results[0];
+            this.clienti   = results[1];
+          } catch(e) {
+            this.errore = String(e.message || e);
+          } finally {
             this.loading = false;
-          });
+          }
+        },
+
+        navTo(v) {
+          this.vista = v;
+          if (v === 'clienti') this.clienteSelezionato = null;
+          this._destroyChart();
+        },
+
+        openCliente(cliente) {
+          this.clienteSelezionato = cliente;
+          this.vista = 'cliente-detail';
+        },
+
+        async openContratto(numOrdine, provenienza) {
+          this._destroyChart();
+          this.contrattoDetail = null;
+          this.erroreDetail    = '';
+          this.subTab          = 'composizione';
+          this.loadingDetail   = true;
+          this.vista           = 'contratto-detail';
+          if (provenienza) this._provenienza = provenienza;
+          try {
+            this.contrattoDetail = await API.getContrattoDetail(numOrdine);
+          } catch(e) {
+            this.erroreDetail = String(e.message || e);
+          } finally {
+            this.loadingDetail = false;
+          }
+        },
+
+        switchSubTab(tab) {
+          this.subTab = tab;
+          if (tab === 'economica') this.$nextTick(() => this.renderChart());
+        },
+
+        get contrattiCliente() {
+          if (!this.clienteSelezionato) return [];
+          var cod = String(this.clienteSelezionato.codice_cliente).trim();
+          return this.contratti
+            .filter(c => String(c.codice_cliente).trim() === cod)
+            .sort((a, b) => String(b.data_firma || '').localeCompare(String(a.data_firma || '')));
         },
 
         get contrattiFiltrati() {
@@ -160,13 +449,83 @@
           );
         },
 
+        contrattiPerCliente(codice) {
+          var cod = String(codice).trim();
+          return this.contratti.filter(c => String(c.codice_cliente).trim() === cod).length;
+        },
+
+        renderChart() {
+          if (!this.contrattoDetail || !this.contrattoDetail.incassi || this.contrattoDetail.incassi.length === 0) return;
+          var canvas = document.getElementById('chartIncassi');
+          if (!canvas) return;
+          if (this._chart) this._chart.destroy();
+          var labels  = this.contrattoDetail.incassi.map(i => this.fmtMese(i.mese));
+          var valori  = this.contrattoDetail.incassi.map(i => i.importo);
+          var cumul   = this.contrattoDetail.incassi.map(i => i.cumulativo);
+          this._chart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Incasso mensile',
+                  data: valori,
+                  backgroundColor: '#1c3557',
+                  borderRadius: 3,
+                  order: 2
+                },
+                {
+                  label: 'Cumulativo',
+                  data: cumul,
+                  type: 'line',
+                  borderColor: '#f59e0b',
+                  backgroundColor: 'transparent',
+                  pointRadius: 3,
+                  tension: 0.3,
+                  order: 1
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: {
+                  callbacks: {
+                    label: ctx => ctx.dataset.label + ': €' + Number(ctx.raw).toLocaleString('it-IT', { minimumFractionDigits: 2 })
+                  }
+                }
+              },
+              scales: {
+                y: { ticks: { callback: v => '€' + Number(v).toLocaleString('it-IT') } }
+              }
+            }
+          });
+        },
+
+        _destroyChart() {
+          if (this._chart) { this._chart.destroy(); this._chart = null; }
+        },
+
         fmtData(v) {
           if (!v) return '';
           if (typeof v === 'string') return v;
-          if (v instanceof Date || (typeof v === 'object' && v.getTime)) {
+          if (typeof v === 'object' && v.getTime) {
             return ('0'+v.getDate()).slice(-2)+'/'+('0'+(v.getMonth()+1)).slice(-2)+'/'+v.getFullYear();
           }
-          return v;
+          return String(v);
+        },
+
+        fmtMese(yyyymm) {
+          if (!yyyymm || String(yyyymm).length < 6) return yyyymm || '';
+          var s = String(yyyymm);
+          var mesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+          return mesi[parseInt(s.substring(4, 6)) - 1] + ' ' + s.substring(0, 4);
+        },
+
+        fmtEuro(n) {
+          if (n === null || n === undefined || n === '') return '—';
+          return Number(n).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
         }
       };
     }
