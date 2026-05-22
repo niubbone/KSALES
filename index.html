@@ -20,6 +20,7 @@
     <span class="font-bold text-base tracking-wide">KSales</span>
     <button @click="navTo('contratti')" :class="vista==='contratti' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm">Contratti</button>
     <button @click="navTo('clienti')"   :class="vista==='clienti'||vista==='cliente-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm">Clienti</button>
+    <button @click="refreshAll()" class="ml-auto text-xs opacity-60 hover:opacity-100" title="Aggiorna dati">↺ Aggiorna</button>
   </nav>
 
   <!-- Breadcrumb -->
@@ -391,6 +392,21 @@
           this.vista = v;
           if (v === 'clienti') this.clienteSelezionato = null;
           this._destroyChart();
+        },
+
+        async refreshAll() {
+          API.clearCache();
+          this.loading = true;
+          this.errore  = '';
+          try {
+            var results = await Promise.all([API.getContratti(), API.getClienti()]);
+            this.contratti = results[0];
+            this.clienti   = results[1];
+          } catch(e) {
+            this.errore = String(e.message || e);
+          } finally {
+            this.loading = false;
+          }
         },
 
         openCliente(cliente) {
