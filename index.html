@@ -338,7 +338,7 @@
               </thead>
               <tbody>
                 <template x-for="(inc, i) in incassiConFirma" :key="i">
-                  <tr :class="inc.tipo==='FIRMA' ? 'bg-blue-50' : (i%2===0?'bg-white':'bg-gray-50')" class="border-b border-gray-100">
+                  <tr :class="inc.tipo==='FIRMA' ? 'bg-green-50' : (i%2===0?'bg-white':'bg-gray-50')" class="border-b border-gray-100">
                     <td class="px-3 py-1.5 text-xs">
                       <span x-text="fmtMese(inc.mese)"></span>
                       <span x-show="inc.tipo==='FIRMA'" class="ml-1.5 bg-[#1c3557] text-white px-1.5 py-0.5 rounded text-xs">F</span>
