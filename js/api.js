@@ -46,5 +46,6 @@ var API = {
   getAgenzie:         function()          { return apiCall('getAgenzie'); },
   getContrattoDetail:      function(numOrdine)    { return apiCall('getContrattoDetail',      { num_ordine:     numOrdine });    },
   getContrattoCommerciale: function(numContratto) { return apiCall('getContrattoCommerciale', { num_contratto: numContratto }); },
-  clearCache:              function()             { Object.keys(LS_TTL).forEach(function(k) { localStorage.removeItem('ks_' + k); }); }
+  clearCache:              function()             { Object.keys(LS_TTL).forEach(function(k) { localStorage.removeItem('ks_' + k); }); },
+  clearServerCache:        function()             { return apiCall('clearCache'); }
 };

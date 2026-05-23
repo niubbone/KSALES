@@ -708,6 +708,7 @@
           this.loading = true;
           this.errore  = '';
           try {
+            await API.clearServerCache();
             var results = await Promise.all([API.getContratti(), API.getClienti()]);
             this.contratti = results[0];
             this.clienti   = results[1];
