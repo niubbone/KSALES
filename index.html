@@ -295,33 +295,22 @@
                   <th class="px-3 py-2 font-medium text-right">Imponibile</th>
                 </tr>
               </thead>
-              <template x-for="group in composizioneGroups" :key="group.cat">
-                <tbody>
-                  <tr x-show="composizioneGroups.length > 1" class="bg-gray-100">
-                    <td colspan="3" class="px-3 py-1 text-xs font-semibold uppercase tracking-wide"
-                        :class="colorCategoria(group.cat)" x-text="labelCategoria(group.cat)"></td>
+              <tbody>
+                <template x-for="item in composizioneOrdinata" :key="item.cod_materiale">
+                  <tr class="border-b border-gray-100">
+                    <td class="px-3 py-2 font-mono text-xs" :class="colorCategoria(item.categoria)" x-text="item.cod_materiale"></td>
+                    <td class="px-3 py-2" :class="colorCategoria(item.categoria)" x-text="item.desc_materiale"></td>
+                    <td class="px-3 py-2 text-right font-medium" :class="colorCategoria(item.categoria)" x-text="item.imponibile ? fmtEuro(item.imponibile) : '—'"></td>
                   </tr>
-                  <template x-for="item in group.items" :key="item.cod_materiale">
-                    <tr class="border-b border-gray-100">
-                      <td class="px-3 py-2 font-mono text-xs" :class="colorCategoria(group.cat)" x-text="item.cod_materiale"></td>
-                      <td class="px-3 py-2" :class="colorCategoria(group.cat)" x-text="item.desc_materiale"></td>
-                      <td class="px-3 py-2 text-right font-medium" :class="colorCategoria(group.cat)" x-text="item.imponibile ? fmtEuro(item.imponibile) : '—'"></td>
-                    </tr>
-                  </template>
-                  <tr x-show="composizioneGroups.length > 1" class="border-t border-gray-200 bg-gray-50">
-                    <td colspan="2" class="px-3 py-1.5 text-xs font-semibold text-right text-gray-500"
-                        x-text="'Subtotale ' + labelCategoria(group.cat)"></td>
-                    <td class="px-3 py-1.5 text-right font-semibold text-gray-700" x-text="fmtEuro(group.subtot)"></td>
-                  </tr>
-                </tbody>
-              </template>
-              <tfoot>
-                <tr x-show="composizioneGroups.length > 0" class="border-t-2 border-gray-400 bg-gray-100">
-                  <td colspan="2" class="px-3 py-2 text-sm font-bold text-gray-700">Totale ordine</td>
-                  <td class="px-3 py-2 text-right font-bold text-gray-900" x-text="fmtEuro(composizioneTotale)"></td>
-                </tr>
+                </template>
                 <tr x-show="!contrattoDetail.composizione || contrattoDetail.composizione.length===0">
                   <td colspan="3" class="px-3 py-6 text-center text-gray-400">Nessun prodotto trovato nei rendiconti</td>
+                </tr>
+              </tbody>
+              <tfoot x-show="contrattoDetail.composizione && contrattoDetail.composizione.length > 0">
+                <tr class="border-t-2 border-gray-400 bg-gray-100">
+                  <td colspan="2" class="px-3 py-2 text-sm font-bold text-gray-700">Totale ordine</td>
+                  <td class="px-3 py-2 text-right font-bold text-gray-900" x-text="fmtEuro(composizioneTotale)"></td>
                 </tr>
               </tfoot>
             </table>
@@ -522,22 +511,12 @@
           return '';
         },
 
-        get composizioneGroups() {
+        get composizioneOrdinata() {
           var items = (this.contrattoDetail && this.contrattoDetail.composizione) || [];
-          var ORDER = ['abbonamento', 'formazione', 'hypercare', 'import_dati'];
-          var cats = {};
-          items.forEach(function(m) {
-            var cat = m.categoria || 'abbonamento';
-            if (!cats[cat]) cats[cat] = [];
-            cats[cat].push(m);
+          var ORDER = { abbonamento: 0, formazione: 1, hypercare: 2, import_dati: 3 };
+          return items.slice().sort(function(a, b) {
+            return (ORDER[a.categoria || 'abbonamento'] || 0) - (ORDER[b.categoria || 'abbonamento'] || 0);
           });
-          return ORDER
-            .filter(function(c) { return cats[c] && cats[c].length; })
-            .map(function(cat) {
-              var list = cats[cat];
-              var subtot = Math.round(list.reduce(function(s, m) { return s + (m.imponibile || 0); }, 0) * 100) / 100;
-              return { cat: cat, items: list, subtot: subtot };
-            });
         },
 
         get composizioneTotale() {
