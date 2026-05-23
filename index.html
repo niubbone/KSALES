@@ -182,36 +182,67 @@
       </div>
     </div>
 
-    <!-- Contratti del cliente (raggruppati per contratto commerciale) -->
+    <!-- Contratti del cliente (raggruppati, espandibili) -->
     <h2 class="text-base font-semibold mb-3">Contratti</h2>
     <div class="overflow-x-auto rounded shadow-sm">
       <table class="min-w-full text-sm bg-white">
         <thead>
           <tr class="bg-[#1c3557] text-white text-left">
+            <th class="w-6"></th>
             <th class="px-3 py-2 font-medium">Contratto</th>
             <th class="px-3 py-2 font-medium">Data Firma</th>
             <th class="px-3 py-2 font-medium text-center">Durata</th>
-            <th class="px-3 py-2 font-medium">Ordini SAP</th>
-            <th class="px-3 py-2 font-medium text-right">Importo totale</th>
+            <th class="px-3 py-2 font-medium text-right">Importo</th>
             <th class="px-3 py-2 font-medium">Stato</th>
           </tr>
         </thead>
         <tbody>
-          <template x-for="(g, i) in contrattiClienteGruppati" :key="i">
-            <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
-                @click="g.num_contratto ? openContrattoCommerciale(g.num_contratto) : openContratto(g.ordini[0].num_ordine_wki, 'cliente-detail')">
-              <td class="px-3 py-2 font-mono text-xs text-blue-700" x-text="g.num_contratto || g.ordini[0].num_ordine_wki"></td>
-              <td class="px-3 py-2 text-xs" x-text="fmtData(g.data_firma)"></td>
-              <td class="px-3 py-2 text-center text-xs" x-text="g.durata_tot ? g.durata_tot + ' m' : ''"></td>
-              <td class="px-3 py-2 text-xs text-gray-500" x-text="g.ordini.map(function(o){return o.num_ordine_wki}).join(', ')"></td>
-              <td class="px-3 py-2 text-right text-xs font-medium" x-text="g.imponibile ? fmtEuro(g.imponibile) : '—'"></td>
+          <template x-for="(row, ri) in contrattiClienteFlat" :key="ri">
+            <tr class="border-b border-gray-100 cursor-pointer"
+                :class="row.type === 'sub' ? 'bg-blue-50 hover:bg-blue-100' : (ri%2===0?'bg-white':'bg-gray-50') + ' hover:bg-blue-50'"
+                @click="row.type === 'sub' ? openContratto(row.o.num_ordine_wki, 'cliente-detail') : (row.g.num_contratto ? openContrattoCommerciale(row.g.num_contratto) : openContratto(row.g.ordini[0].num_ordine_wki, 'cliente-detail'))">
+
+              <!-- Expand arrow -->
+              <td class="w-6 text-center">
+                <span x-show="row.type === 'gruppo' && row.multiOrdine"
+                      class="text-gray-400 text-xs select-none px-1"
+                      @click.stop="toggleGruppo(row.key)"
+                      x-text="row.espanso ? '▾' : '▸'"></span>
+              </td>
+
+              <!-- Contratto o sub-ordine -->
               <td class="px-3 py-2">
-                <span :class="g.stato==='DISDETTO'?'bg-gray-200 text-gray-500':'bg-green-100 text-green-700'"
-                      class="px-2 py-0.5 rounded text-xs font-medium" x-text="g.stato||'ATTIVO'"></span>
+                <div x-show="row.type === 'gruppo'"
+                     class="font-mono text-xs text-blue-700"
+                     x-text="row.g.num_contratto || (row.g.ordini[0] && row.g.ordini[0].num_ordine_wki)"></div>
+                <div x-show="row.type === 'sub'" class="flex items-center gap-1.5 pl-5">
+                  <span class="font-mono text-xs text-gray-500" x-text="row.o.num_ordine_wki"></span>
+                  <span :class="row.o.tipo==='NUOVO'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'"
+                        class="px-1.5 py-0.5 rounded text-xs font-medium" x-text="row.o.tipo"></span>
+                </div>
+              </td>
+
+              <!-- Data firma -->
+              <td class="px-3 py-2 text-xs"
+                  x-text="row.type === 'gruppo' ? fmtData(row.g.data_firma) : fmtData(row.o.data_firma)"></td>
+
+              <!-- Durata -->
+              <td class="px-3 py-2 text-center text-xs"
+                  x-text="row.type === 'gruppo' ? (row.g.durata_tot ? row.g.durata_tot + ' m' : '') : (row.o.durata_mesi ? row.o.durata_mesi + ' m' : '')"></td>
+
+              <!-- Importo -->
+              <td class="px-3 py-2 text-right text-xs font-medium"
+                  x-text="row.type === 'gruppo' ? (row.g.imponibile ? fmtEuro(row.g.imponibile) : '—') : (row.o.imponibile ? fmtEuro(row.o.imponibile) : '—')"></td>
+
+              <!-- Stato -->
+              <td class="px-3 py-2">
+                <span :class="rowStato(row)==='DISDETTO'?'bg-gray-200 text-gray-500':'bg-green-100 text-green-700'"
+                      class="px-2 py-0.5 rounded text-xs font-medium"
+                      x-text="rowStato(row)"></span>
               </td>
             </tr>
           </template>
-          <tr x-show="contrattiClienteGruppati.length===0">
+          <tr x-show="contrattiClienteFlat.length===0">
             <td colspan="6" class="px-3 py-6 text-center text-gray-400">Nessun contratto trovato per questo cliente</td>
           </tr>
         </tbody>
@@ -642,6 +673,7 @@
         contrattoCommDetail: null,
         filtroContratti:     '',
         filtroClienti:       '',
+        _gruppiAperti:       {},
         _chart:              null,
         _chartComm:          null,
 
@@ -681,7 +713,18 @@
 
         openCliente(cliente) {
           this.clienteSelezionato = cliente;
+          this._gruppiAperti = {};
           this.vista = 'cliente-detail';
+        },
+
+        toggleGruppo(key) {
+          this._gruppiAperti = Object.assign({}, this._gruppiAperti, { [key]: !this._gruppiAperti[key] });
+        },
+
+        rowStato(row) {
+          return row.type === 'gruppo'
+            ? (row.g.stato || 'ATTIVO')
+            : ((row.o && row.o.stato) || 'ATTIVO');
         },
 
         async openContratto(numOrdine, provenienza) {
@@ -743,7 +786,7 @@
           tutti.forEach(function(c) {
             var nc  = String(c.num_contratto || '').trim();
             var key = nc || ('__' + c.num_ordine_wki);
-            if (!gruppi[key]) gruppi[key] = { num_contratto: nc, ordini: [], tipo: c.tipo, data_firma: c.data_firma, durata_tot: 0, imponibile: 0, stato: c.stato };
+            if (!gruppi[key]) gruppi[key] = { key: key, num_contratto: nc, ordini: [], tipo: c.tipo, data_firma: c.data_firma, durata_tot: 0, imponibile: 0, stato: c.stato };
             var g = gruppi[key];
             g.ordini.push(c);
             g.imponibile  = Math.round((g.imponibile + (c.imponibile || 0)) * 100) / 100;
@@ -753,6 +796,21 @@
           return Object.keys(gruppi)
             .map(function(k) { return gruppi[k]; })
             .sort(function(a, b) { return String(b.data_firma||'').localeCompare(String(a.data_firma||'')); });
+        },
+
+        get contrattiClienteFlat() {
+          var aperto = this._gruppiAperti;
+          var rows   = [];
+          this.contrattiClienteGruppati.forEach(function(g) {
+            var multi = g.ordini.length > 1;
+            rows.push({ type: 'gruppo', key: g.key, g: g, multiOrdine: multi, espanso: !!aperto[g.key] });
+            if (multi && aperto[g.key]) {
+              g.ordini.forEach(function(o) {
+                rows.push({ type: 'sub', key: g.key, g: g, o: o });
+              });
+            }
+          });
+          return rows;
         },
 
         get commImponibileTot() {
