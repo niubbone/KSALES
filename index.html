@@ -246,6 +246,34 @@
           </div>
         </div>
 
+        <!-- Ordini collegati (stesso contratto commerciale) -->
+        <template x-if="ordiniCollegati.length > 1">
+          <div class="bg-blue-50 border border-blue-200 rounded shadow-sm p-4 mb-6">
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-3">Contratto commerciale · ordini SAP collegati</p>
+            <table class="w-full text-sm">
+              <tbody>
+                <template x-for="oc in ordiniCollegati" :key="oc.num_ordine_wki">
+                  <tr :class="oc.num_ordine_wki === contrattoDetail.contratto.num_ordine_wki ? 'font-semibold' : ''">
+                    <td class="py-1 pr-3">
+                      <span class="font-mono"
+                            :class="oc.num_ordine_wki !== contrattoDetail.contratto.num_ordine_wki ? 'text-[#1c3557] cursor-pointer hover:underline' : ''"
+                            @click="oc.num_ordine_wki !== contrattoDetail.contratto.num_ordine_wki && openContratto(oc.num_ordine_wki)"
+                            x-text="oc.num_ordine_wki"></span>
+                    </td>
+                    <td class="py-1 text-gray-500 text-xs px-2" x-text="oc.tipo"></td>
+                    <td class="py-1 text-gray-500 text-xs px-2" x-text="oc.durata_mesi ? oc.durata_mesi + 'm' : ''"></td>
+                    <td class="py-1 text-right" x-text="oc.imponibile ? fmtEuro(oc.imponibile) : '—'"></td>
+                  </tr>
+                </template>
+                <tr class="border-t border-blue-300 font-semibold">
+                  <td colspan="3" class="pt-2 text-xs text-gray-600">Totale contratto</td>
+                  <td class="pt-2 text-right" x-text="fmtEuro(totaleContratto)"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
         <!-- Sub-tabs -->
         <div class="flex border-b mb-6 bg-white rounded-t shadow-sm">
           <button @click="switchSubTab('composizione')"
@@ -478,6 +506,19 @@
           return this.contratti
             .filter(c => String(c.codice_cliente).trim() === cod)
             .sort((a, b) => String(b.data_firma || '').localeCompare(String(a.data_firma || '')));
+        },
+
+        get ordiniCollegati() {
+          if (!this.contrattoDetail || !this.contrattoDetail.contratto) return [];
+          var nc = String(this.contrattoDetail.contratto.num_contratto || '').trim();
+          if (!nc) return [];
+          return this.contratti
+            .filter(function(c) { return String(c.num_contratto || '').trim() === nc; })
+            .sort(function(a, b) { return String(a.data_firma || '').localeCompare(String(b.data_firma || '')); });
+        },
+
+        get totaleContratto() {
+          return Math.round(this.ordiniCollegati.reduce(function(s, c) { return s + (c.imponibile || 0); }, 0) * 100) / 100;
         },
 
         get contrattiFiltrati() {
