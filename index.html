@@ -110,7 +110,7 @@
               </td>
               <td class="px-3 py-2 text-right text-xs font-medium" x-text="c.imponibile ? fmtEuro(c.imponibile) : '—'"></td>
               <td class="px-3 py-2">
-                <span :class="c.stato==='DISDETTO'?'bg-gray-200 text-gray-500':'bg-green-100 text-green-700'"
+                <span :class="statoClass(c.stato||'ATTIVO')"
                       class="px-2 py-0.5 rounded text-xs font-medium" x-text="c.stato||'ATTIVO'"></span>
               </td>
             </tr>
@@ -236,7 +236,7 @@
 
               <!-- Stato -->
               <td class="px-3 py-2">
-                <span :class="rowStato(row)==='DISDETTO'?'bg-gray-200 text-gray-500':'bg-green-100 text-green-700'"
+                <span :class="statoClass(rowStato(row))"
                       class="px-2 py-0.5 rounded text-xs font-medium"
                       x-text="rowStato(row)"></span>
               </td>
@@ -1027,6 +1027,17 @@
 
         _destroyChartComm() {
           if (this._chartComm) { this._chartComm.destroy(); this._chartComm = null; }
+        },
+
+        statoClass(stato) {
+          var m = {
+            SALDATO:  'bg-green-100 text-green-700',
+            ATTIVO:   'bg-blue-100 text-blue-700',
+            OVER:     'bg-red-100 text-red-700',
+            ANOMALIA: 'bg-orange-100 text-orange-700',
+            DISDETTO: 'bg-gray-200 text-gray-500'
+          };
+          return m[stato] || 'bg-blue-100 text-blue-700';
         },
 
         fmtNC(nc) {
