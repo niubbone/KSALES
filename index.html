@@ -19,7 +19,7 @@
   <nav class="bg-[#1c3557] text-white px-6 py-3 flex items-center gap-6 shadow sticky top-0 z-10">
     <span class="font-bold text-base tracking-wide">KSales</span>
     <button @click="navTo('contratti')" :class="vista==='contratti' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm">Contratti</button>
-    <button @click="navTo('clienti')"   :class="vista==='clienti'||vista==='cliente-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm">Clienti</button>
+    <button @click="navTo('clienti')"   :class="vista==='clienti'||vista==='cliente-detail'||vista==='contratto-comm-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm">Clienti</button>
     <button @click="refreshAll()" class="ml-auto text-xs opacity-60 hover:opacity-100" title="Aggiorna dati">↺ Aggiorna</button>
   </nav>
 
@@ -30,6 +30,15 @@
         <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
         <span class="mx-1">›</span>
         <span class="text-gray-800 font-medium" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></span>
+      </span>
+    </template>
+    <template x-if="vista === 'contratto-comm-detail'">
+      <span class="flex items-center gap-1">
+        <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
+        <span class="mx-1">›</span>
+        <button @click="navTo('cliente-detail')" class="hover:text-[#1c3557]" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></button>
+        <span class="mx-1">›</span>
+        <span class="text-gray-800 font-medium" x-text="contrattoCommDetail && contrattoCommDetail.num_contratto"></span>
       </span>
     </template>
     <template x-if="vista === 'contratto-detail'">
@@ -173,42 +182,37 @@
       </div>
     </div>
 
-    <!-- Contratti del cliente -->
+    <!-- Contratti del cliente (raggruppati per contratto commerciale) -->
     <h2 class="text-base font-semibold mb-3">Contratti</h2>
     <div class="overflow-x-auto rounded shadow-sm">
       <table class="min-w-full text-sm bg-white">
         <thead>
           <tr class="bg-[#1c3557] text-white text-left">
-            <th class="px-3 py-2 font-medium">Ordine</th>
             <th class="px-3 py-2 font-medium">Contratto</th>
             <th class="px-3 py-2 font-medium">Data Firma</th>
             <th class="px-3 py-2 font-medium text-center">Durata</th>
-            <th class="px-3 py-2 font-medium">Tipo</th>
-            <th class="px-3 py-2 font-medium text-right">Importo</th>
+            <th class="px-3 py-2 font-medium">Ordini SAP</th>
+            <th class="px-3 py-2 font-medium text-right">Importo totale</th>
             <th class="px-3 py-2 font-medium">Stato</th>
           </tr>
         </thead>
         <tbody>
-          <template x-for="(c, i) in contrattiCliente" :key="i">
+          <template x-for="(g, i) in contrattiClienteGruppati" :key="i">
             <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
-                @click="openContratto(c.num_ordine_wki, 'cliente-detail')">
-              <td class="px-3 py-2 font-mono text-xs text-blue-700" x-text="c.num_ordine_wki"></td>
-              <td class="px-3 py-2 font-mono text-xs" x-text="c.num_contratto"></td>
-              <td class="px-3 py-2 text-xs" x-text="fmtData(c.data_firma)"></td>
-              <td class="px-3 py-2 text-center text-xs" x-text="c.durata_mesi || ''"></td>
+                @click="g.num_contratto ? openContrattoCommerciale(g.num_contratto) : openContratto(g.ordini[0].num_ordine_wki, 'cliente-detail')">
+              <td class="px-3 py-2 font-mono text-xs text-blue-700" x-text="g.num_contratto || g.ordini[0].num_ordine_wki"></td>
+              <td class="px-3 py-2 text-xs" x-text="fmtData(g.data_firma)"></td>
+              <td class="px-3 py-2 text-center text-xs" x-text="g.durata_tot ? g.durata_tot + ' m' : ''"></td>
+              <td class="px-3 py-2 text-xs text-gray-500" x-text="g.ordini.map(function(o){return o.num_ordine_wki}).join(', ')"></td>
+              <td class="px-3 py-2 text-right text-xs font-medium" x-text="g.imponibile ? fmtEuro(g.imponibile) : '—'"></td>
               <td class="px-3 py-2">
-                <span :class="c.tipo==='NUOVO'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'"
-                      class="px-2 py-0.5 rounded text-xs font-medium" x-text="c.tipo"></span>
-              </td>
-              <td class="px-3 py-2 text-right text-xs font-medium" x-text="c.imponibile ? fmtEuro(c.imponibile) : '—'"></td>
-              <td class="px-3 py-2">
-                <span :class="c.stato==='DISDETTO'?'bg-gray-200 text-gray-500':'bg-green-100 text-green-700'"
-                      class="px-2 py-0.5 rounded text-xs font-medium" x-text="c.stato||'ATTIVO'"></span>
+                <span :class="g.stato==='DISDETTO'?'bg-gray-200 text-gray-500':'bg-green-100 text-green-700'"
+                      class="px-2 py-0.5 rounded text-xs font-medium" x-text="g.stato||'ATTIVO'"></span>
               </td>
             </tr>
           </template>
-          <tr x-show="contrattiCliente.length===0">
-            <td colspan="7" class="px-3 py-6 text-center text-gray-400">Nessun contratto trovato per questo cliente</td>
+          <tr x-show="contrattiClienteGruppati.length===0">
+            <td colspan="6" class="px-3 py-6 text-center text-gray-400">Nessun contratto trovato per questo cliente</td>
           </tr>
         </tbody>
       </table>
@@ -420,24 +424,226 @@
     </template>
   </section>
 
+  <!-- ── VISTA: CONTRATTO COMMERCIALE ──────────────────────── -->
+  <section x-show="!loading && vista==='contratto-comm-detail'" class="p-6">
+
+    <div x-show="loadingCommDetail" class="flex items-center justify-center h-32 text-gray-400 gap-3">
+      <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+      Caricamento contratto…
+    </div>
+    <div x-show="erroreCommDetail" class="p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm mb-4" x-text="erroreCommDetail"></div>
+
+    <template x-if="!loadingCommDetail && contrattoCommDetail">
+      <div>
+
+        <!-- Header contratto commerciale -->
+        <div class="bg-white rounded shadow-sm p-4 mb-6 flex flex-wrap gap-6 items-start">
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Contratto commerciale</p>
+            <p class="text-xl font-bold text-[#1c3557]" x-text="contrattoCommDetail.num_contratto"></p>
+          </div>
+          <div class="text-sm text-gray-600 grid grid-cols-2 gap-x-8 gap-y-1 mt-1">
+            <span class="text-gray-400">Cliente</span>   <span class="font-medium" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></span>
+            <span class="text-gray-400">Data firma</span><span x-text="contrattoCommDetail.ordini && fmtData(contrattoCommDetail.ordini[0] && contrattoCommDetail.ordini[0].data_firma)"></span>
+            <span class="text-gray-400">Agenzia</span>   <span x-text="contrattoCommDetail.ordini && contrattoCommDetail.ordini[0] && contrattoCommDetail.ordini[0].codice_agenzia"></span>
+          </div>
+        </div>
+
+        <!-- Ordini SAP collegati -->
+        <div class="bg-blue-50 border border-blue-200 rounded shadow-sm p-4 mb-6">
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-3">Ordini SAP</p>
+          <table class="w-full text-sm">
+            <tbody>
+              <template x-for="(o, oi) in contrattoCommDetail.ordini" :key="oi">
+                <tr>
+                  <td class="py-1 pr-3">
+                    <span class="font-mono text-[#1c3557] cursor-pointer hover:underline"
+                          @click="openContratto(o.num_ordine_wki, 'contratto-comm-detail')"
+                          x-text="o.num_ordine_wki"></span>
+                  </td>
+                  <td class="py-1 px-2 text-xs text-gray-500" x-text="o.tipo"></td>
+                  <td class="py-1 px-2 text-xs text-gray-500" x-text="o.durata_mesi ? o.durata_mesi + ' m' : ''"></td>
+                  <td class="py-1 text-xs text-gray-500" x-text="fmtData(o.data_firma)"></td>
+                  <td class="py-1 text-right text-xs font-medium" x-text="o.imponibile ? fmtEuro(o.imponibile) : '—'"></td>
+                </tr>
+              </template>
+              <tr class="border-t border-blue-300 font-semibold text-sm">
+                <td colspan="4" class="pt-2 text-xs text-gray-600">Totale contratto</td>
+                <td class="pt-2 text-right" x-text="fmtEuro(commImponibileTot)"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="flex border-b mb-6 bg-white rounded-t shadow-sm">
+          <button @click="subTabComm='composizione'"
+                  :class="subTabComm==='composizione' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                  class="px-6 py-3 text-sm">Composizione</button>
+          <button @click="subTabComm='economica'; $nextTick(()=>renderChartComm())"
+                  :class="subTabComm==='economica' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                  class="px-6 py-3 text-sm">Situazione Economica</button>
+        </div>
+
+        <!-- TAB: Composizione -->
+        <div x-show="subTabComm==='composizione'">
+          <div class="overflow-x-auto rounded shadow-sm">
+            <table class="min-w-full text-sm bg-white">
+              <thead>
+                <tr class="bg-[#1c3557] text-white text-left">
+                  <th class="px-3 py-2 font-medium">Codice</th>
+                  <th class="px-3 py-2 font-medium">Prodotto</th>
+                  <th class="px-3 py-2 font-medium text-right">Imponibile</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(item, ci) in (contrattoCommDetail.composizione || [])" :key="ci">
+                  <tr class="border-b border-gray-100">
+                    <td class="px-3 py-2 font-mono text-xs" :class="colorCategoria(item.categoria)" x-text="item.cod_materiale"></td>
+                    <td class="px-3 py-2" :class="colorCategoria(item.categoria)" x-text="item.desc_materiale"></td>
+                    <td class="px-3 py-2 text-right font-medium" :class="colorCategoria(item.categoria)" x-text="item.imponibile ? fmtEuro(item.imponibile) : '—'"></td>
+                  </tr>
+                </template>
+              </tbody>
+              <tfoot x-show="contrattoCommDetail.composizione && contrattoCommDetail.composizione.length > 0">
+                <tr class="border-t-2 border-gray-400 bg-gray-100">
+                  <td colspan="2" class="px-3 py-2 text-sm font-bold text-gray-700">Totale</td>
+                  <td class="px-3 py-2 text-right font-bold text-gray-900" x-text="fmtEuro(commComposizioneTot)"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: Situazione Economica -->
+        <div x-show="subTabComm==='economica'" class="space-y-6">
+
+          <!-- KPI cards -->
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-white rounded shadow-sm p-4 text-center">
+              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Provv. Attesa</p>
+              <p class="text-xl font-bold text-gray-700" x-text="fmtEuro(contrattoCommDetail.provv_attesa)"></p>
+            </div>
+            <div class="bg-white rounded shadow-sm p-4 text-center">
+              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Provv. Ricevuta</p>
+              <p class="text-xl font-bold text-gray-700" x-text="fmtEuro(contrattoCommDetail.provv_ricevuta)"></p>
+            </div>
+            <div class="rounded shadow-sm p-4 text-center"
+                 :class="contrattoCommDetail.saldo < -0.5 ? 'bg-yellow-50' : contrattoCommDetail.saldo > 0.5 ? 'bg-red-50' : 'bg-green-50'">
+              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Saldo</p>
+              <p class="text-xl font-bold"
+                 :class="contrattoCommDetail.saldo < -0.5 ? 'text-yellow-700' : contrattoCommDetail.saldo > 0.5 ? 'text-red-700' : 'text-green-700'"
+                 x-text="fmtEuro(contrattoCommDetail.saldo)"></p>
+              <p class="text-xs mt-1"
+                 :class="contrattoCommDetail.saldo < -0.5 ? 'text-yellow-600' : contrattoCommDetail.saldo > 0.5 ? 'text-red-500' : 'text-green-600'"
+                 x-text="contrattoCommDetail.saldo < -0.5 ? 'da ricevere' : contrattoCommDetail.saldo > 0.5 ? 'eccedenza' : 'in pari'"></p>
+            </div>
+          </div>
+
+          <!-- Provvigione firma -->
+          <div class="bg-white rounded shadow-sm p-4" x-show="contrattoCommDetail.firma">
+            <p class="text-xs text-gray-400 uppercase tracking-wide mb-3">Provvigione Firma</p>
+            <div class="flex flex-wrap items-start gap-6">
+              <div>
+                <span class="text-xs text-gray-400">Mese rendiconto</span>
+                <p class="font-semibold" x-text="contrattoCommDetail.firma && fmtMese(contrattoCommDetail.firma.mese)"></p>
+              </div>
+              <div>
+                <span class="text-xs text-gray-400">Totale ricevuto</span>
+                <p class="font-semibold text-green-700" x-text="contrattoCommDetail.firma && fmtEuro(contrattoCommDetail.firma.importo)"></p>
+              </div>
+              <template x-if="contrattoCommDetail.firma && contrattoCommDetail.firma.per_categoria">
+                <div class="text-sm">
+                  <span class="text-xs text-gray-400 block mb-1">Per categoria</span>
+                  <template x-for="cat in ['abbonamento','formazione','hypercare','import_dati']" :key="cat">
+                    <div x-show="contrattoCommDetail.firma.per_categoria[cat]" class="flex gap-3 items-center">
+                      <span class="text-xs w-24" :class="colorCategoria(cat)" x-text="labelCategoria(cat)"></span>
+                      <span class="font-medium text-xs" x-text="fmtEuro(contrattoCommDetail.firma.per_categoria[cat])"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Grafico incassi mensili -->
+          <div class="bg-white rounded shadow-sm p-4" x-show="commIncassiPerMese.length > 0">
+            <p class="text-xs text-gray-400 uppercase tracking-wide mb-4">Incassi mensili</p>
+            <canvas id="chartIncassiComm" height="100"></canvas>
+          </div>
+
+          <!-- Tabella incassi -->
+          <div class="overflow-x-auto rounded shadow-sm" x-show="commIncassiConFirma.length > 0">
+            <table class="min-w-full text-sm bg-white">
+              <thead>
+                <tr class="bg-gray-100 text-gray-600 text-left">
+                  <th class="px-3 py-2 font-medium">Mese</th>
+                  <th class="px-3 py-2 font-medium">Categoria</th>
+                  <th class="px-3 py-2 font-medium text-right">Lordo</th>
+                  <th class="px-3 py-2 font-medium text-right">Storno</th>
+                  <th class="px-3 py-2 font-medium text-right">Netto</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(inc, ii) in commIncassiConFirma" :key="ii">
+                  <tr :class="inc.tipo==='FIRMA' ? 'bg-green-50' : (ii%2===0?'bg-white':'bg-gray-50')" class="border-b border-gray-100">
+                    <td class="px-3 py-1.5 text-xs">
+                      <span x-text="fmtMese(inc.mese)"></span>
+                      <span x-show="inc.tipo==='FIRMA'" class="ml-1.5 bg-[#1c3557] text-white px-1.5 py-0.5 rounded text-xs">F</span>
+                    </td>
+                    <td class="px-3 py-1.5 text-xs" :class="colorCategoria(inc.categoria)"
+                        x-text="inc.categoria ? labelCategoria(inc.categoria) : ''"></td>
+                    <td class="px-3 py-1.5 text-right" x-text="inc.lordo ? fmtEuro(inc.lordo) : '—'"></td>
+                    <td class="px-3 py-1.5 text-right text-red-500" x-text="inc.storno ? fmtEuro(inc.storno) : '—'"></td>
+                    <td class="px-3 py-1.5 text-right font-medium" x-text="fmtEuro(inc.netto)"></td>
+                  </tr>
+                </template>
+              </tbody>
+              <tfoot>
+                <tr class="border-t-2 border-gray-300 bg-gray-50">
+                  <td colspan="4" class="px-3 py-2 text-xs font-semibold text-gray-600">Totale</td>
+                  <td class="px-3 py-2 text-right font-bold" x-text="fmtEuro(commTotaleNetto)"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div x-show="!contrattoCommDetail.incassi || contrattoCommDetail.incassi.length===0"
+               class="bg-white rounded shadow-sm p-6 text-center text-gray-400 text-sm">
+            Nessun incasso registrato nei rendiconti
+          </div>
+
+        </div>
+      </div>
+    </template>
+  </section>
+
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script>
     function app() {
       return {
-        vista:              'clienti',
-        subTab:             'composizione',
-        loading:            true,
-        loadingDetail:      false,
-        errore:             '',
-        erroreDetail:       '',
-        contratti:          [],
-        clienti:            [],
-        clienteSelezionato: null,
-        contrattoDetail:    null,
-        filtroContratti:    '',
-        filtroClienti:      '',
-        _chart:             null,
+        vista:               'clienti',
+        subTab:              'composizione',
+        subTabComm:          'composizione',
+        loading:             true,
+        loadingDetail:       false,
+        loadingCommDetail:   false,
+        errore:              '',
+        erroreDetail:        '',
+        erroreCommDetail:    '',
+        contratti:           [],
+        clienti:             [],
+        clienteSelezionato:  null,
+        contrattoDetail:     null,
+        contrattoCommDetail: null,
+        filtroContratti:     '',
+        filtroClienti:       '',
+        _chart:              null,
+        _chartComm:          null,
 
         async init() {
           try {
@@ -455,6 +661,7 @@
           this.vista = v;
           if (v === 'clienti') this.clienteSelezionato = null;
           this._destroyChart();
+          this._destroyChartComm();
         },
 
         async refreshAll() {
@@ -494,6 +701,22 @@
           }
         },
 
+        async openContrattoCommerciale(numContratto) {
+          this._destroyChartComm();
+          this.contrattoCommDetail = null;
+          this.erroreCommDetail    = '';
+          this.subTabComm          = 'composizione';
+          this.loadingCommDetail   = true;
+          this.vista               = 'contratto-comm-detail';
+          try {
+            this.contrattoCommDetail = await API.getContrattoCommerciale(numContratto);
+          } catch(e) {
+            this.erroreCommDetail = String(e.message || e);
+          } finally {
+            this.loadingCommDetail = false;
+          }
+        },
+
         switchSubTab(tab) {
           this.subTab = tab;
           if (tab === 'economica') this.$nextTick(() => this.renderChart());
@@ -509,6 +732,74 @@
           if (cat === 'hypercare')   return 'text-green-800';
           if (cat === 'import_dati') return 'text-yellow-700';
           return '';
+        },
+
+        get contrattiClienteGruppati() {
+          if (!this.clienteSelezionato) return [];
+          var cod  = String(this.clienteSelezionato.codice_cliente).trim();
+          var tutti = this.contratti
+            .filter(function(c) { return String(c.codice_cliente).trim() === cod; });
+          var gruppi = {};
+          tutti.forEach(function(c) {
+            var nc  = String(c.num_contratto || '').trim();
+            var key = nc || ('__' + c.num_ordine_wki);
+            if (!gruppi[key]) gruppi[key] = { num_contratto: nc, ordini: [], tipo: c.tipo, data_firma: c.data_firma, durata_tot: 0, imponibile: 0, stato: c.stato };
+            var g = gruppi[key];
+            g.ordini.push(c);
+            g.imponibile  = Math.round((g.imponibile + (c.imponibile || 0)) * 100) / 100;
+            g.durata_tot += (c.durata_mesi || 0);
+            if (String(c.tipo||'').trim() === 'NUOVO') { g.tipo = 'NUOVO'; g.data_firma = c.data_firma; }
+          });
+          return Object.keys(gruppi)
+            .map(function(k) { return gruppi[k]; })
+            .sort(function(a, b) { return String(b.data_firma||'').localeCompare(String(a.data_firma||'')); });
+        },
+
+        get commImponibileTot() {
+          return Math.round(((this.contrattoCommDetail && this.contrattoCommDetail.ordini) || [])
+            .reduce(function(s, o) { return s + (o.imponibile || 0); }, 0) * 100) / 100;
+        },
+
+        get commComposizioneTot() {
+          return Math.round(((this.contrattoCommDetail && this.contrattoCommDetail.composizione) || [])
+            .reduce(function(s, m) { return s + (m.imponibile || 0); }, 0) * 100) / 100;
+        },
+
+        get commIncassiPerMese() {
+          var byMese = {};
+          ((this.contrattoCommDetail && this.contrattoCommDetail.incassi) || []).forEach(function(inc) {
+            byMese[inc.mese] = Math.round(((byMese[inc.mese] || 0) + (inc.netto || 0)) * 100) / 100;
+          });
+          return Object.keys(byMese).sort().map(function(m) { return { mese: m, netto: byMese[m] }; });
+        },
+
+        get commIncassiConFirma() {
+          var rows = [];
+          if (this.contrattoCommDetail && this.contrattoCommDetail.firma) {
+            var f = this.contrattoCommDetail.firma;
+            var perCat = f.per_categoria || {};
+            var cats   = Object.keys(perCat);
+            if (cats.length > 0) {
+              cats.forEach(function(cat) {
+                rows.push({ mese: f.mese, tipo: 'FIRMA', categoria: cat, lordo: perCat[cat], storno: 0, netto: perCat[cat] });
+              });
+            } else {
+              rows.push({ mese: f.mese, tipo: 'FIRMA', categoria: null, lordo: f.importo, storno: 0, netto: f.importo });
+            }
+          }
+          ((this.contrattoCommDetail && this.contrattoCommDetail.incassi) || []).forEach(function(inc) {
+            rows.push({ mese: inc.mese, tipo: 'INCASSO', categoria: inc.categoria, lordo: inc.lordo, storno: inc.storno, netto: inc.netto });
+          });
+          rows.sort(function(a, b) {
+            if (a.mese < b.mese) return -1; if (a.mese > b.mese) return 1;
+            if (a.tipo === 'FIRMA') return -1; if (b.tipo === 'FIRMA') return 1;
+            return 0;
+          });
+          return rows;
+        },
+
+        get commTotaleNetto() {
+          return Math.round(this.commIncassiConFirma.reduce(function(s, r) { return s + (r.netto || 0); }, 0) * 100) / 100;
         },
 
         get composizioneTotale() {
@@ -642,6 +933,34 @@
 
         _destroyChart() {
           if (this._chart) { this._chart.destroy(); this._chart = null; }
+        },
+
+        renderChartComm() {
+          var dati = this.commIncassiPerMese;
+          if (!dati || dati.length === 0) return;
+          var canvas = document.getElementById('chartIncassiComm');
+          if (!canvas) return;
+          if (this._chartComm) this._chartComm.destroy();
+          var self = this;
+          this._chartComm = new Chart(canvas, {
+            type: 'bar',
+            data: {
+              labels: dati.map(function(i) { return self.fmtMese(i.mese); }),
+              datasets: [{ label: 'Incasso netto', data: dati.map(function(i) { return i.netto; }), backgroundColor: '#1c3557', borderRadius: 3 }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': €' + Number(ctx.raw).toLocaleString('it-IT', { minimumFractionDigits: 2 }); } } }
+              },
+              scales: { y: { ticks: { callback: function(v) { return '€' + Number(v).toLocaleString('it-IT'); } } } }
+            }
+          });
+        },
+
+        _destroyChartComm() {
+          if (this._chartComm) { this._chartComm.destroy(); this._chartComm = null; }
         },
 
         fmtData(v) {
