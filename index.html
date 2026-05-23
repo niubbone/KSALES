@@ -552,29 +552,43 @@
         <!-- TAB: Situazione Economica -->
         <div x-show="subTabComm==='economica'" class="space-y-6">
 
-          <!-- KPI cards -->
-          <div class="grid grid-cols-3 gap-4">
-            <div class="bg-white rounded shadow-sm p-4 text-center">
-              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Provv. Attesa</p>
-              <p class="text-xl font-bold text-gray-700" x-text="fmtEuro(contrattoCommDetail.provv_attesa)"></p>
-            </div>
-            <div class="bg-white rounded shadow-sm p-4 text-center">
-              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Provv. Ricevuta</p>
-              <p class="text-xl font-bold text-gray-700" x-text="fmtEuro(contrattoCommDetail.provv_ricevuta)"></p>
-            </div>
-            <div class="rounded shadow-sm p-4 text-center"
-                 :class="contrattoCommDetail.saldo < -0.5 ? 'bg-yellow-50' : contrattoCommDetail.saldo > 0.5 ? 'bg-red-50' : 'bg-green-50'">
-              <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Saldo</p>
-              <p class="text-xl font-bold"
-                 :class="contrattoCommDetail.saldo < -0.5 ? 'text-yellow-700' : contrattoCommDetail.saldo > 0.5 ? 'text-red-700' : 'text-green-700'"
-                 x-text="fmtEuro(contrattoCommDetail.saldo)"></p>
-              <p class="text-xs mt-1"
-                 :class="contrattoCommDetail.saldo < -0.5 ? 'text-yellow-600' : contrattoCommDetail.saldo > 0.5 ? 'text-red-500' : 'text-green-600'"
-                 x-text="contrattoCommDetail.saldo < -0.5 ? 'da ricevere' : contrattoCommDetail.saldo > 0.5 ? 'eccedenza' : 'in pari'"></p>
-            </div>
+          <!-- Riepilogo per categoria: attesa / ricevuta / saldo -->
+          <div class="overflow-x-auto rounded shadow-sm">
+            <table class="min-w-full text-sm bg-white">
+              <thead>
+                <tr class="bg-[#1c3557] text-white text-left">
+                  <th class="px-3 py-2 font-medium">Categoria</th>
+                  <th class="px-3 py-2 font-medium text-right">Provv. Attesa</th>
+                  <th class="px-3 py-2 font-medium text-right">Provv. Ricevuta</th>
+                  <th class="px-3 py-2 font-medium text-right">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(cat, ci) in (contrattoCommDetail.categorie || [])" :key="ci">
+                  <tr class="border-b border-gray-100" :class="ci%2===0?'bg-white':'bg-gray-50'">
+                    <td class="px-3 py-2 font-medium" :class="colorCategoria(cat.categoria)" x-text="labelCategoria(cat.categoria)"></td>
+                    <td class="px-3 py-2 text-right text-xs" x-text="fmtEuro(cat.provv_attesa)"></td>
+                    <td class="px-3 py-2 text-right text-xs" x-text="fmtEuro(cat.provv_ricevuta)"></td>
+                    <td class="px-3 py-2 text-right text-xs font-semibold"
+                        :class="cat.saldo < -0.5 ? 'text-yellow-700' : cat.saldo > 0.5 ? 'text-red-700' : 'text-green-700'"
+                        x-text="fmtEuro(cat.saldo)"></td>
+                  </tr>
+                </template>
+              </tbody>
+              <tfoot>
+                <tr class="border-t-2 border-gray-400 bg-gray-100 font-semibold">
+                  <td class="px-3 py-2 text-sm">Totale</td>
+                  <td class="px-3 py-2 text-right" x-text="fmtEuro(contrattoCommDetail.provv_attesa)"></td>
+                  <td class="px-3 py-2 text-right" x-text="fmtEuro(contrattoCommDetail.provv_ricevuta)"></td>
+                  <td class="px-3 py-2 text-right font-bold"
+                      :class="contrattoCommDetail.saldo < -0.5 ? 'text-yellow-700' : contrattoCommDetail.saldo > 0.5 ? 'text-red-700' : 'text-green-700'"
+                      x-text="fmtEuro(contrattoCommDetail.saldo)"></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
 
-          <!-- Provvigione firma -->
+          <!-- Provvigione firma (mese e dettaglio) -->
           <div class="bg-white rounded shadow-sm p-4" x-show="contrattoCommDetail.firma">
             <p class="text-xs text-gray-400 uppercase tracking-wide mb-3">Provvigione Firma</p>
             <div class="flex flex-wrap items-start gap-6">
@@ -586,17 +600,6 @@
                 <span class="text-xs text-gray-400">Totale ricevuto</span>
                 <p class="font-semibold text-green-700" x-text="contrattoCommDetail.firma && fmtEuro(contrattoCommDetail.firma.importo)"></p>
               </div>
-              <template x-if="contrattoCommDetail.firma && contrattoCommDetail.firma.per_categoria">
-                <div class="text-sm">
-                  <span class="text-xs text-gray-400 block mb-1">Per categoria</span>
-                  <template x-for="cat in ['abbonamento','formazione','hypercare','import_dati']" :key="cat">
-                    <div x-show="contrattoCommDetail.firma.per_categoria[cat]" class="flex gap-3 items-center">
-                      <span class="text-xs w-24" :class="colorCategoria(cat)" x-text="labelCategoria(cat)"></span>
-                      <span class="font-medium text-xs" x-text="fmtEuro(contrattoCommDetail.firma.per_categoria[cat])"></span>
-                    </div>
-                  </template>
-                </div>
-              </template>
             </div>
           </div>
 
