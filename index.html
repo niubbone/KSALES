@@ -310,7 +310,7 @@
               <tfoot x-show="contrattoDetail.composizione && contrattoDetail.composizione.length > 0">
                 <tr class="border-t-2 border-gray-400 bg-gray-100">
                   <td colspan="2" class="px-3 py-2 text-sm font-bold text-gray-700">Totale ordine</td>
-                  <td class="px-3 py-2 text-right font-bold text-gray-900" x-text="composizioneTotale"></td>
+                  <td class="px-3 py-2 text-right font-bold text-gray-900" x-text="fmtEuro(composizioneTotale)"></td>
                 </tr>
               </tfoot>
             </table>
