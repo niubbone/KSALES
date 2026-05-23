@@ -38,7 +38,7 @@
         <span class="mx-1">›</span>
         <button @click="navTo('cliente-detail')" class="hover:text-[#1c3557]" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></button>
         <span class="mx-1">›</span>
-        <span class="text-gray-800 font-medium" x-text="contrattoCommDetail && contrattoCommDetail.num_contratto"></span>
+        <span class="text-gray-800 font-medium" x-text="contrattoCommDetail && fmtNC(contrattoCommDetail.num_contratto)"></span>
       </span>
     </template>
     <template x-if="vista === 'contratto-detail'">
@@ -214,7 +214,7 @@
               <td class="px-3 py-2">
                 <div x-show="row.type === 'gruppo'"
                      class="font-mono text-xs text-blue-700"
-                     x-text="row.g.num_contratto || (row.g.ordini[0] && row.g.ordini[0].num_ordine_wki)"></div>
+                     x-text="fmtNC(row.g.num_contratto) || (row.g.ordini[0] && row.g.ordini[0].num_ordine_wki)"></div>
                 <div x-show="row.type === 'sub'" class="flex items-center gap-1.5 pl-5">
                   <span class="font-mono text-xs text-gray-500" x-text="row.o.num_ordine_wki"></span>
                   <span :class="row.o.tipo==='NUOVO'?'bg-blue-100 text-blue-700':'bg-amber-100 text-amber-700'"
@@ -474,7 +474,11 @@
         <div class="bg-white rounded shadow-sm p-4 mb-6 flex flex-wrap gap-6 items-start">
           <div>
             <p class="text-xs text-gray-400 uppercase tracking-wide">Contratto commerciale</p>
-            <p class="text-xl font-bold text-[#1c3557]" x-text="contrattoCommDetail.num_contratto"></p>
+            <p class="text-xl font-bold text-[#1c3557]">
+              <span x-text="fmtNC(contrattoCommDetail.num_contratto)"></span>
+              <span x-show="contrattoCommDetail.num_contratto && String(contrattoCommDetail.num_contratto).startsWith('SYN_')"
+                    class="ml-2 text-xs font-normal bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded" title="Collegamento sintetico — n_doc SAP non ancora disponibile">senza n_doc</span>
+            </p>
           </div>
           <div class="text-sm text-gray-600 grid grid-cols-2 gap-x-8 gap-y-1 mt-1">
             <span class="text-gray-400">Cliente</span>   <span class="font-medium" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></span>
@@ -1022,6 +1026,11 @@
 
         _destroyChartComm() {
           if (this._chartComm) { this._chartComm.destroy(); this._chartComm = null; }
+        },
+
+        fmtNC(nc) {
+          if (!nc) return '';
+          return String(nc).startsWith('SYN_') ? String(nc).slice(4) : String(nc);
         },
 
         fmtData(v) {
