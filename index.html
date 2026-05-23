@@ -325,22 +325,24 @@
             <canvas id="chartIncassi" height="100"></canvas>
           </div>
 
-          <!-- Tabella incassi con cumulativo -->
+          <!-- Tabella incassi mensili -->
           <div class="overflow-x-auto rounded shadow-sm" x-show="contrattoDetail.incassi && contrattoDetail.incassi.length > 0">
             <table class="min-w-full text-sm bg-white">
               <thead>
                 <tr class="bg-gray-100 text-gray-600 text-left">
                   <th class="px-3 py-2 font-medium">Mese</th>
-                  <th class="px-3 py-2 font-medium text-right">Incasso</th>
-                  <th class="px-3 py-2 font-medium text-right">Cumulativo</th>
+                  <th class="px-3 py-2 font-medium text-right">Lordo</th>
+                  <th class="px-3 py-2 font-medium text-right">Storno</th>
+                  <th class="px-3 py-2 font-medium text-right">Netto</th>
                 </tr>
               </thead>
               <tbody>
                 <template x-for="(inc, i) in contrattoDetail.incassi" :key="i">
                   <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100">
                     <td class="px-3 py-1.5 text-xs" x-text="fmtMese(inc.mese)"></td>
-                    <td class="px-3 py-1.5 text-right" x-text="fmtEuro(inc.importo)"></td>
-                    <td class="px-3 py-1.5 text-right text-gray-500" x-text="fmtEuro(inc.cumulativo)"></td>
+                    <td class="px-3 py-1.5 text-right" x-text="inc.lordo ? fmtEuro(inc.lordo) : '—'"></td>
+                    <td class="px-3 py-1.5 text-right text-red-500" x-text="inc.storno ? fmtEuro(inc.storno) : '—'"></td>
+                    <td class="px-3 py-1.5 text-right font-medium" x-text="fmtEuro(inc.netto)"></td>
                   </tr>
                 </template>
               </tbody>
@@ -475,30 +477,18 @@
           var canvas = document.getElementById('chartIncassi');
           if (!canvas) return;
           if (this._chart) this._chart.destroy();
-          var labels  = this.contrattoDetail.incassi.map(i => this.fmtMese(i.mese));
-          var valori  = this.contrattoDetail.incassi.map(i => i.importo);
-          var cumul   = this.contrattoDetail.incassi.map(i => i.cumulativo);
+          var labels = this.contrattoDetail.incassi.map(i => this.fmtMese(i.mese));
+          var netti  = this.contrattoDetail.incassi.map(i => i.netto);
           this._chart = new Chart(canvas, {
             type: 'bar',
             data: {
               labels: labels,
               datasets: [
                 {
-                  label: 'Incasso mensile',
-                  data: valori,
+                  label: 'Incasso netto',
+                  data: netti,
                   backgroundColor: '#1c3557',
-                  borderRadius: 3,
-                  order: 2
-                },
-                {
-                  label: 'Cumulativo',
-                  data: cumul,
-                  type: 'line',
-                  borderColor: '#f59e0b',
-                  backgroundColor: 'transparent',
-                  pointRadius: 3,
-                  tension: 0.3,
-                  order: 1
+                  borderRadius: 3
                 }
               ]
             },
