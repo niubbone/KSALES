@@ -604,14 +604,6 @@
                 <span class="text-xs text-gray-400">Firma ricevuta</span>
                 <p class="font-semibold text-green-700" x-text="contrattoCommDetail.firma && fmtEuro(contrattoCommDetail.firma.importo)"></p>
               </div>
-              <div x-show="contrattoCommDetail.firma && contrattoCommDetail.firma.storno">
-                <span class="text-xs text-gray-400">Storno firma</span>
-                <p class="font-semibold text-red-600" x-text="contrattoCommDetail.firma && fmtEuro(contrattoCommDetail.firma.storno)"></p>
-              </div>
-              <div x-show="contrattoCommDetail.firma && contrattoCommDetail.firma.storno">
-                <span class="text-xs text-gray-400">Netto</span>
-                <p class="font-semibold" x-text="contrattoCommDetail.firma && fmtEuro(contrattoCommDetail.firma.netto)"></p>
-              </div>
             </div>
           </div>
 
@@ -860,9 +852,9 @@
             } else {
               rows.push({ mese: f.mese, tipo: 'FIRMA', categoria: null, lordo: f.importo, storno: 0, netto: f.importo });
             }
-            // Storno firma se presente (riga separata per visibilità)
+            // Storno firma al mese effettivo del rendiconto (non al mese firma)
             if (f.storno) {
-              rows.push({ mese: f.mese, tipo: 'STORNO FIRMA', categoria: null, lordo: 0, storno: f.storno, netto: f.storno });
+              rows.push({ mese: f.storno_mese || f.mese, tipo: 'STORNO FIRMA', categoria: null, lordo: 0, storno: f.storno, netto: f.storno });
             }
           }
           ((this.contrattoCommDetail && this.contrattoCommDetail.incassi) || []).forEach(function(inc) {
