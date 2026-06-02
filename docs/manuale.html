@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KS - Manuale Operativo</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:980px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#222}
+  h1{color:#1c3557;border-bottom:3px solid #1c3557;padding-bottom:.4em;margin-top:0}
+  h2{color:#1c3557;border-bottom:2px solid #1c3557;padding-bottom:.25em;margin-top:2.5em}
+  h3{color:#2a5a8a;margin-top:1.5em}
+  h4{color:#3a6a9a;margin-top:1.2em}
+  code{background:#f0f4f8;padding:.1em .35em;border-radius:3px;font-size:.88em;color:#1c3557}
+  pre{background:#f0f4f8;padding:1em 1.2em;border-radius:6px;overflow-x:auto;border-left:4px solid #1c3557}
+  pre code{background:none;padding:0;color:#222;font-size:.9em}
+  table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92em}
+  th,td{border:1px solid #ccc;padding:.45em .75em;text-align:left;vertical-align:top}
+  th{background:#1c3557;color:#fff}
+  tr:nth-child(even){background:#f9f9f9}
+  blockquote{border-left:4px solid #1c3557;margin:1em 0;padding:.6em 1em;background:#f0f4f8;color:#444;border-radius:0 4px 4px 0}
+  blockquote strong{color:#1c3557}
+  hr{border:none;border-top:1px solid #ddd;margin:2.5em 0}
+  .warn{border-left-color:#c0392b;background:#fdf0ef}
+  .warn strong{color:#c0392b}
+  .note{border-left-color:#27ae60;background:#f0faf4}
+  .note strong{color:#27ae60}
+  .monitor{border-left-color:#e67e22;background:#fef9f0}
+  .monitor strong{color:#e67e22}
+  .toc{background:#f8f9fa;border:1px solid #ddd;padding:1em 1.5em;border-radius:6px;margin-bottom:2em}
+  .toc ol{margin:.3em 0;padding-left:1.4em}
+  .toc li{margin:.15em 0}
+  .toc a{color:#1c3557;text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .badge{display:inline-block;padding:.1em .5em;border-radius:3px;font-size:.8em;font-weight:600}
+  .badge-nuovo{background:#dbeafe;color:#1d4ed8}
+  .badge-rinnovo{background:#fef3c7;color:#92400e}
+  .badge-syn{background:#fef3c7;color:#92400e}
+  .badge-ok{background:#dcfce7;color:#166534}
+  .badge-warn{background:#fee2e2;color:#991b1b}
+  .version{color:#666;font-size:.92em;margin-bottom:1.5em}
+  .new-tag{background:#d1fae5;color:#065f46;font-size:.75em;font-weight:700;padding:.1em .4em;border-radius:3px;vertical-align:middle;margin-left:.4em}
+</style>
+</head>
+<body>
+
+<h1>KS — Sistema Riconciliazione Provvigioni<br><small style="font-size:.55em;font-weight:400;color:#444">Manuale Operativo</small></h1>
+
+<p class="version">
+  <strong>Versione:</strong> pre-1.0 (maggio 2026 — aggiornato 24/05/2026 · GAS @21 · frontend a4d24d6)<br>
+  <strong>Progetto:</strong> Google Apps Script collegato a <em>KS-DB</em> e <em>KS-CS</em> + web frontend (GitHub Pages)
+</p>
+
+<div class="toc">
+  <strong>Indice</strong>
+  <ol>
+    <li><a href="#s1">Panoramica</a></li>
+    <li><a href="#s2">Struttura database (KS-DB)</a></li>
+    <li><a href="#s3">Struttura PRODOTTI — Aliquote</a></li>
+    <li><a href="#s4">Flusso operativo standard</a></li>
+    <li><a href="#s5">Funzioni disponibili</a></li>
+    <li><a href="#s6">Struttura tab ORD nel foglio CS</a></li>
+    <li><a href="#s7">Struttura tab PAG nel foglio CS</a></li>
+    <li><a href="#s8">DELTA e STATO — Guida dettagliata</a></li>
+    <li><a href="#s9">Inferenza durata e tipo contratto</a></li>
+    <li><a href="#s10">Codici agenzia e sub-agenti</a></li>
+    <li><a href="#s11">Importazione rendiconti</a></li>
+    <li><a href="#s12">Tab PROVVIGIONI</a></li>
+    <li><a href="#s13">Variabili di configurazione</a></li>
+    <li><a href="#s14">Tab SEGNALAZIONI — anomalie provvigionali</a></li>
+    <li><a href="#s15">ALIQUOTE_STORICHE — gestione cambi tariffe</a></li>
+    <li><a href="#s16">Web frontend</a></li>
+    <li><a href="#s17">Architettura e prospettiva v2.0</a></li>
+    <li><a href="#s18">Limitazioni note (pre-1.0)</a></li>
+    <li><a href="#s19">Codici WKI/SAP — Dizionario operativo</a></li>
+    <li><a href="#s20">Contratto commerciale aggregato</a></li>
+    <li><a href="#s21">Situazioni da monitorare</a></li>
+    <li><a href="#s22">Sistema stati contratti</a></li>
+  </ol>
+</div>
+
+<hr>
+
+<h2 id="s1">1. Panoramica</h2>
+
+<p>Il sistema automatizza la riconciliazione delle provvigioni WKI confrontando:</p>
+<ul>
+  <li><strong>RENDICONTI</strong> SAP (CSV mensili per linea): ciò che WKI ha effettivamente liquidato</li>
+  <li><strong>PRODOTTI</strong>: le aliquote provvigionali attese per ogni prodotto/linea/tipo</li>
+  <li><strong>CONTRATTI</strong>: l'anagrafica degli ordini firmati</li>
+</ul>
+
+<p>Il risultato è il foglio <strong>KS-CS</strong> con una tab per linea, una riga per contratto, e uno <strong>STATO</strong> che indica a colpo d'occhio se la situazione è ok o richiede attenzione. Ogni linea ha anche una tab <strong>PAG</strong> con il pivot mensile dei pagamenti.</p>
+
+<table>
+  <thead><tr><th>Tab CS</th><th>Linee incluse</th><th>Stato</th></tr></thead>
+  <tbody>
+    <tr><td>X200-ORD / PAG-X200</td><td>X200 (diretta)</td><td>✓ Completo</td></tr>
+    <tr><td>X136-ORD / PAG-X136</td><td>X136 + X209</td><td>✓ Completo</td></tr>
+    <tr><td>G174-ORD / PAG-G174</td><td>G174</td><td>✓ Completo</td></tr>
+    <tr><td>S148-ORD / PAG-S148</td><td>S148</td><td>✓ Completo</td></tr>
+    <tr><td>F502-ORD / PAG-F502</td><td>F502</td><td>✓ Completo</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="s2">2. Struttura database (KS-DB)</h2>
+
+<table>
+  <thead><tr><th>Tab</th><th>Contenuto</th><th>Fonte</th></tr></thead>
+  <tbody>
+    <tr><td><strong>AGENZIE</strong></td><td>Codici linea e tipo (diretta/gestita)</td><td>Manuale</td></tr>
+    <tr><td><strong>PRODOTTI</strong></td><td>Catalogo prodotti con aliquote per linea e tipo</td><td><code>populateProdotti</code></td></tr>
+    <tr><td><strong>ALIQUOTE_STORICHE</strong></td><td>Storico aliquote per periodi di validità</td><td><code>setupDB</code> + edit manuale</td></tr>
+    <tr><td><strong>CLIENTI</strong></td><td>Anagrafica clienti — <strong>unica fonte di verità per codice_agenzia</strong></td><td><code>populateClienti</code> + edit manuale</td></tr>
+    <tr><td><strong>CONTRATTI</strong></td><td>Un record per ordine SAP (doc_vend). La colonna <code>num_contratto</code> collega ordini dello stesso contratto commerciale.</td><td><code>populateContratti</code></td></tr>
+    <tr><td><strong>RENDICONTI</strong></td><td>Righe CSV SAP importate (G174/X136/X200/S148/F502)</td><td><code>importRendicontiFolder</code> / <code>_importS148Folder</code> / <code>_importF502Folder</code></td></tr>
+    <tr><td><strong>ESTRAZIONI</strong></td><td>Estratti BudAnal (portafoglio attivo)</td><td><code>importEstrazioniFolder</code></td></tr>
+    <tr><td><strong>FATTURE</strong></td><td>Fatture emesse</td><td>Manuale</td></tr>
+    <tr><td><strong>X209_PRODUZIONE</strong></td><td>Produzione X209 da documenti PDF/testo</td><td><code>processX209Staging</code></td></tr>
+    <tr><td><strong>X209_STAGING</strong></td><td>Area di parcheggio per incolla X209 grezzo</td><td>Manuale (incolla testo)</td></tr>
+    <tr><td><strong>PROVVIGIONI</strong></td><td>Tabella flat: una riga per (ordine, mese, tipo_provv, materiale)</td><td><code>populateProvvigioni</code></td></tr>
+    <tr><td><strong>SEGNALAZIONI</strong></td><td>Anomalie provvigionali aperte verso WKI</td><td><code>_importaProblemiDaCS</code> + edit manuale</td></tr>
+    <tr><td><strong>SEGNALAZIONI_CHIUSE</strong></td><td>Archivio segnalazioni risolte (spostate automaticamente)</td><td><code>onEdit</code> / <code>chiudiSegnalazione</code></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="s3">3. Struttura PRODOTTI — Aliquote</h2>
+
+<p>Schema a 13 colonne con firma e incasso <strong>separati</strong>:</p>
+
+<table>
+  <thead><tr><th>Campo</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td><code>aliq_x200_firma_nuovo</code></td><td>% quota firma, X200, nuovo contratto</td></tr>
+    <tr><td><code>aliq_x200_incasso_nuovo</code></td><td>% quota incasso, X200, nuovo contratto</td></tr>
+    <tr><td><code>aliq_x200_firma_rinnovo</code></td><td>% quota firma, X200, rinnovo</td></tr>
+    <tr><td><code>aliq_x200_incasso_rinnovo</code></td><td>% quota incasso, X200, rinnovo</td></tr>
+    <tr><td><code>aliq_gestite_firma_nuovo</code></td><td>% quota firma, G174/X136, nuovo</td></tr>
+    <tr><td><code>aliq_gestite_incasso_nuovo</code></td><td>% quota incasso, G174/X136, nuovo</td></tr>
+    <tr><td><code>aliq_gestite_firma_rinnovo</code></td><td>% quota firma, G174/X136, rinnovo</td></tr>
+    <tr><td><code>aliq_gestite_incasso_rinnovo</code></td><td>% quota incasso, G174/X136, rinnovo</td></tr>
+    <tr><td><code>aliq_x209</code></td><td>% totale X209 (unica soluzione, tutto firma)</td></tr>
+    <tr><td><code>aliq_s148</code></td><td>% totale S148 annuo (firma + incasso): es. ABB = 10% firma + 10% incasso = 20%</td></tr>
+  </tbody>
+</table>
+
+<h3>Aliquote vigenti per categoria</h3>
+
+<table>
+  <thead><tr><th>Categoria</th><th>X200 nuovo</th><th>X200 rinnovo</th><th>Gestite nuovo</th><th>Gestite rinnovo</th><th>X209</th><th>S148 (annuo)</th></tr></thead>
+  <tbody>
+    <tr><td>ABB (abbonamento)</td><td>22.5+22.5 = <strong>45%</strong></td><td>17.5+17.5 = <strong>35%</strong></td><td>10+10 = <strong>20%</strong></td><td>10+5 = <strong>15%</strong></td><td>20%</td><td>10%+10% = <strong>20%</strong></td></tr>
+    <tr><td>FORM / HYPER</td><td>40+40 = <strong>80%</strong></td><td>40+40 = <strong>80%</strong></td><td>30+30 = <strong>60%</strong></td><td>30+30 = <strong>60%</strong></td><td>60%</td><td><strong>60%</strong></td></tr>
+    <tr><td>IMPORT dati</td><td>22.5+22.5 = <strong>45%</strong></td><td>22.5+22.5 = <strong>45%</strong></td><td>20+20 = <strong>40%</strong></td><td>20+20 = <strong>40%</strong></td><td>40%</td><td><strong>40%</strong></td></tr>
+  </tbody>
+</table>
+
+<blockquote>Le aliquote gestite su rinnovo (10+5=15%) si applicano ai rinnovi sulle linee G174/X136/F502. I rinnovi gestite provengono da vecchi contratti e non sono contestabili.</blockquote>
+
+<blockquote><strong>S148:</strong> <code>aliq_s148</code> rappresenta il totale annuo (firma + incasso). La firma è riconosciuta all'atto della sottoscrizione (YASV, incassato=0), l'incasso al pagamento effettivo (KSBF, incassato&gt;0). La firma triennale viene pagata anno per anno (non cumulativa). Solo contratti NUOVI — nessun rinnovo in S148.</blockquote>
+
+<hr>
+
+<h2 id="s4">4. Flusso operativo standard</h2>
+
+<h3>Setup iniziale (una tantum)</h3>
+<ol>
+  <li>Eseguire <code>setupDB</code> → crea le tab nel DB</li>
+  <li>Eseguire <code>populateProdotti</code> → popola il catalogo prodotti</li>
+  <li>Eseguire <code>_impostaCS</code> (con ID reale del foglio CS) → salva l'ID nelle proprietà dello script</li>
+</ol>
+
+<h3>Import mensile</h3>
+
+<pre><code>_importS148Folder('1ZUkyA3OnvJWGGb7UMxJk3RQI193K0ObB')  → importa dips148*.csv da Drive (S148)
+_importF502Folder('1TX2cZK2lNcXsDCuoi-eI-H_EDf2SM-nz')  → importa ripf502*.xlsx da Drive (F502)
+importRendicontiFolder(folderId)                          → importa i CSV rendiconto da Drive (dml*.csv)
+importEstrazioniFolder(folderId)                          → importa i BudAnal da Drive (opzionale)
+_populateClienti                    → aggiunge nuovi clienti a CLIENTI
+_populateContratti                  → aggiunge nuovi contratti a CONTRATTI
+_backfillDataFirmaContratti         → popola data_firma in CONTRATTI da data_doc SAP (RENDICONTI)
+_backfillNumContratto               → popola/aggiorna num_contratto (3 pass — vedi §20)
+_sincronizzaAgenzieDaClienti        → propaga codice_agenzia da CLIENTI → CONTRATTI
+_generaCS                           → rigenera i tab ORD e PAG nel foglio CS
+_aggiornaStatiContratti             → ricalcola CONTRATTI.stato (SALDATO/OVER/ANOMALIA/ATTIVO — vedi §22)
+_populateProvvigioni                → rigenera la tab PROVVIGIONI (opzionale)</code></pre>
+
+<blockquote><strong>Ordine importante:</strong> <code>_importS148Folder</code> e <code>_importF502Folder</code> vanno eseguiti <strong>prima</strong> di <code>_populateClienti</code>, <code>_populateContratti</code> e <code>_generaCS</code>, in modo che i nuovi contratti siano già presenti in RENDICONTI al momento della popolazione. <code>_aggiornaStatiContratti</code> va eseguito dopo <code>_generaCS</code>.</blockquote>
+
+<h3>Modifica manuale codici agenzia</h3>
+<ol>
+  <li>Editare <code>codice_agenzia</code> nella tab <strong>CLIENTI</strong> di KS-DB</li>
+  <li>Eseguire <code>_sincronizzaAgenzieDaClienti</code> → propaga a CONTRATTI (con guard linea-gruppo)</li>
+  <li>Eseguire <code>_generaCS</code> → aggiorna il CS</li>
+</ol>
+
+<blockquote><strong>Guard linea-gruppo:</strong> la sync non sposta mai un contratto da una linea all'altra.</blockquote>
+
+<h3>Ricalcolo durata contratti (dopo cambio logica)</h3>
+
+<pre><code>_backfillDurataContratti   → ricalcola durata_mesi e tipo per tutti i contratti in CONTRATTI
+                              leggendo desc_materiale da RENDICONTI
+                              (preserva le modifiche manuali — vedi §9)</code></pre>
+
+<h3>Svuotamento cache</h3>
+
+<p>Il sistema usa due livelli di cache indipendenti:</p>
+<ul>
+  <li><strong>CacheService GAS</strong> (server-side): chiavi <code>det_...</code> e <code>comm_...</code>, TTL 30 min. Svuotare con <code>clearAllCache()</code> da GAS.</li>
+  <li><strong>localStorage browser</strong> (client-side): chiavi <code>ks_getContratti</code> e <code>ks_getClienti</code>, TTL 15 min. Svuotata automaticamente al click di «Aggiorna tutto» nel frontend.</li>
+</ul>
+<p>Il pulsante «Aggiorna tutto» nel frontend pulisce entrambi i livelli in sequenza (server + browser) prima di ricaricare i dati. Per pulire solo la cache GAS da script: <code>clearAllCache()</code>.</p>
+
+<hr>
+
+<h2 id="s5">5. Funzioni disponibili</h2>
+
+<h3>Da Apps Script — Codice.js (visibili nel menu Esegui)</h3>
+
+<table>
+  <thead><tr><th>Funzione</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td><code>_populateClienti</code></td><td>Aggiunge clienti nuovi da RENDICONTI a CLIENTI</td></tr>
+    <tr><td><code>_populateContratti</code></td><td>Aggiunge contratti nuovi da RENDICONTI a CONTRATTI</td></tr>
+    <tr><td><code>_impostaCS</code></td><td>Salva l'ID del foglio CS (eseguire una volta sola)</td></tr>
+    <tr><td><code>_generaCS</code></td><td>Genera/rigenera i tab ORD e PAG nel foglio CS</td></tr>
+    <tr><td><code>_backfillSubAgenti</code></td><td>Aggiorna codice_agenzia in CLIENTI/CONTRATTI da ESTRAZIONI BudAnal</td></tr>
+    <tr><td><code>_sincronizzaAgenzieDaClienti</code></td><td>Propaga CLIENTI.codice_agenzia → CONTRATTI</td></tr>
+    <tr><td><code>_populateProvvigioni</code></td><td>Rigenera la tab PROVVIGIONI (flat, idempotente)</td></tr>
+    <tr><td><code>_backfillDurataContratti</code></td><td>Ricalcola durata_mesi e tipo da desc_materiale RENDICONTI; preserva i valori già impostati manualmente (durata_mesi &gt; 0)</td></tr>
+    <tr><td><code>_backfillNumContratto</code></td><td>Popola <code>num_contratto</code> in CONTRATTI: Pass 1 via n_doc RENDICONTI, Pass 2 via prossimità data, Pass 3 accoppiamento G↔NT sintetico (vedi §20)</td></tr>
+    <tr><td><code>_importS148Folder</code></td><td>Importa tutti i <code>dips148*.csv</code> dalla cartella Drive S148</td></tr>
+    <tr><td><code>_importF502Folder</code></td><td>Importa tutti i <code>ripf502*.xlsx</code> dalla cartella Drive F502</td></tr>
+    <tr><td><code>_importaProblemiDaCS</code></td><td>Legge tab PAG del CS e crea segnalazioni per contratti con saldo non ricevuto; eseguire dopo <code>_generaCS</code></td></tr>
+    <tr><td><code>_formatSegnalazioni</code></td><td>Applica formattazione e colori condizionali alla tab SEGNALAZIONI</td></tr>
+    <tr><td><code>_generaLetteraSegnalazioni</code></td><td>Genera lettera di contestazione WKI per tutte le segnalazioni APERTA/LAVORAZIONE</td></tr>
+    <tr><td><code>_generaLetteraSegnalazioniMese</code></td><td>Genera lettera di contestazione per un singolo mese (editare MESE nel codice)</td></tr>
+    <tr><td><code>_chiudiSegnalazione</code></td><td>Marca una segnalazione come CHIUSA via script</td></tr>
+    <tr><td><code>_reconciliazioneAnnuale</code></td><td>Riepilogo annuale per linea: provvigioni vs fatture vs pagamenti netti</td></tr>
+    <tr><td><code>_backfillDataFirmaContratti</code></td><td>Popola CONTRATTI.data_firma da <code>data_doc</code> SAP in RENDICONTI (preferisce righe YASV/YPFA; non sovrascrive date già valide)</td></tr>
+    <tr><td><code>_aggiornaStatiContratti</code></td><td>Ricalcola CONTRATTI.stato: SALDATO / OVER / ANOMALIA / ATTIVO / DISDETTO (vedi §22). Eseguire dopo <code>_generaCS</code>.</td></tr>
+    <tr><td><code>clearAllCache</code></td><td>Svuota la cache GAS: tutte le chiavi <code>det_...</code> e <code>comm_...</code>. Eseguire dopo ogni import.</td></tr>
+  </tbody>
+</table>
+
+<h3>Funzioni avanzate (chiamare direttamente da Apps Script)</h3>
+
+<table>
+  <thead><tr><th>Funzione</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td><code>importRendiconto(fileId)</code></td><td>Importa un singolo CSV rendiconto da Drive</td></tr>
+    <tr><td><code>importRendicontiFolder(folderId)</code></td><td>Importa tutti i CSV da una cartella Drive</td></tr>
+    <tr><td><code>importEstrazioniFolder(folderId)</code></td><td>Importa file BudAnal da cartella Drive</td></tr>
+    <tr><td><code>backfillSubAgenti()</code></td><td>Backfill sub-agenti da ESTRAZIONI</td></tr>
+    <tr><td><code>importS148Folder(folderId)</code></td><td>Importa tutti i <code>dips148*.csv</code> da una cartella Drive (S148)</td></tr>
+    <tr><td><code>importF502Folder(folderId)</code></td><td>Importa tutti i <code>ripf502*.xlsx</code> da una cartella Drive (F502)</td></tr>
+    <tr><td><code>_importS148File()</code></td><td>Importa un singolo file dips148 (uso test/debug)</td></tr>
+    <tr><td><code>dedupRendiconti()</code></td><td>Rimuove duplicati da RENDICONTI e ri-numera gli ID. Eseguire dopo import bulk.</td></tr>
+    <tr><td><code>reportValidazione(anno)</code></td><td>Genera REPORT_VAL con totali per linea/mese</td></tr>
+  </tbody>
+</table>
+
+<h3>Endpoint API Web App (doGet.gs)</h3>
+
+<table>
+  <thead><tr><th>action</th><th>Parametri</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td><code>getContratti</code></td><td>—</td><td>Lista completa contratti (cached 15 min localStorage)</td></tr>
+    <tr><td><code>getClienti</code></td><td>—</td><td>Lista completa clienti (cached 15 min localStorage)</td></tr>
+    <tr><td><code>getProdotti</code></td><td>—</td><td>Catalogo prodotti</td></tr>
+    <tr><td><code>getAgenzie</code></td><td>—</td><td>Lista agenzie</td></tr>
+    <tr><td><code>getContrattoDetail</code></td><td><code>num_ordine</code></td><td>Dettaglio singolo ordine SAP (cached 30 min CacheService)</td></tr>
+    <tr><td><code>getContrattoCommerciale</code></td><td><code>num_contratto</code></td><td>Vista aggregata di tutti gli ordini SAP dello stesso contratto commerciale (cached 30 min)</td></tr>
+    <tr><td><code>getContrattoCommerciale</code></td><td><code>num_contratto</code></td><td>Vista aggregata di tutti gli ordini SAP dello stesso contratto commerciale (cached 30 min)</td></tr>
+    <tr><td><code>clearCache</code></td><td>—</td><td>Svuota la CacheService GAS (det_... + comm_...). Chiamato automaticamente dal pulsante «Aggiorna tutto» nel frontend.</td></tr>
+    <tr><td><code>debugRendiconti</code></td><td><code>num_ordine</code> / <code>rag_soc</code></td><td>Dump grezzo righe RENDICONTI per un ordine o ragione sociale (debug)</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="s6">6. Struttura tab ORD nel foglio CS</h2>
+
+<p>Ogni riga = un contratto. 24 colonne:</p>
+
+<table>
+  <thead><tr><th>Col</th><th>Nome</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td>A</td><td>DATA_FIRMA</td><td>Data firma (gg/mm/aaaa; fallback: primo mese rendiconto)</td></tr>
+    <tr><td>B</td><td>MESE_FIRMA</td><td>YYYYMM — usato per ordinamento cronologico</td></tr>
+    <tr><td>C</td><td>NUM_ORDINE</td><td>Numero ordine WKI (doc_vend SAP)</td></tr>
+    <tr><td>D</td><td>NUM_CONTRATTO</td><td>N. doc. SAP (contratto quadro che collega ordini split). Può essere una chiave sintetica <code>SYN_...</code> — vedi §20.</td></tr>
+    <tr><td>E</td><td>CODICE_CLI</td><td>Codice cliente SAP (senza zeri iniziali)</td></tr>
+    <tr><td>F</td><td>CLIENTE</td><td>Ragione sociale</td></tr>
+    <tr><td>G</td><td>LINEA</td><td>Linea master (X200 / X136 / G174)</td></tr>
+    <tr><td>H</td><td>AGENZIA</td><td>Codice sub-agente specifico (X091, G020, ecc.) — da CLIENTI</td></tr>
+    <tr><td>I</td><td>DURATA_MESI</td><td>Durata contratto in mesi (12 / 24 / 36)</td></tr>
+    <tr><td>J</td><td>TIPO</td><td>NUOVO o RINNOVO</td></tr>
+    <tr><td>K</td><td>PRODOTTO_PRINC</td><td>Descrizione prodotto principale (ABB con imponibile più alto)</td></tr>
+    <tr><td>L</td><td>ABB</td><td>Imponibile abbonamenti (€)</td></tr>
+    <tr><td>M</td><td>FORM</td><td>Imponibile formazione (€)</td></tr>
+    <tr><td>N</td><td>IMPORT</td><td>Imponibile importazione dati (€)</td></tr>
+    <tr><td>O</td><td>HYPER</td><td>Imponibile HYPER (€)</td></tr>
+    <tr><td>P</td><td>TOTALE</td><td>Somma L+M+N+O (€)</td></tr>
+    <tr><td>Q</td><td>PROVV_ATTESA</td><td>Provvigione attesa (imponibile × aliquota da PRODOTTI)</td></tr>
+    <tr><td>R</td><td>PROVV_REND</td><td>Provvigione effettiva cumulata da SAP (tutti gli anni)</td></tr>
+    <tr><td>S</td><td>DELTA</td><td>Differenza aliquota effettiva − attesa (punti percentuale)</td></tr>
+    <tr><td>T</td><td>DELTA_PCT</td><td>DELTA / aliquota attesa × 100</td></tr>
+    <tr><td>U</td><td>STATO</td><td>Classificazione automatica (vedi §8)</td></tr>
+    <tr><td>V</td><td>N_MESI_REND</td><td>Mesi distinti presenti in RENDICONTI per questo contratto</td></tr>
+    <tr><td>W</td><td>NOTE</td><td>Campo libero — <strong>azzerato ad ogni <code>_generaCS</code></strong></td></tr>
+    <tr><td>X</td><td>ALIQ_ATTESA</td><td>Aliquota percentuale attesa da catalogo PRODOTTI (numero tondo) — usata da <code>_importaProblemiDaCS</code></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="s7">7. Struttura tab PAG nel foglio CS</h2>
+
+<p>Una tab PAG per linea (PAG-X200, PAG-X136, PAG-G174, PAG-S148, PAG-F502). Pivot contratti × mesi.</p>
+
+<h4>Colonne fisse (11)</h4>
+<table>
+  <thead><tr><th>Nome</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td>NUM_CONTRATTO</td><td>N. doc. SAP (contratto quadro)</td></tr>
+    <tr><td>NUM_ORDINE</td><td>Ordine WKI (più ordini separati da <code>/</code> per contratti split)</td></tr>
+    <tr><td>CLIENTE</td><td>Ragione sociale</td></tr>
+    <tr><td>LINEA</td><td>Linea master</td></tr>
+    <tr><td>AGENZIA</td><td>Codice sub-agente</td></tr>
+    <tr><td>TIPO</td><td>NUOVO / RINNOVO</td></tr>
+    <tr><td>DURATA_MESI</td><td>Durata totale (somma parti per contratti split; cap a 36 per triennali)</td></tr>
+    <tr><td>TOT_IMP</td><td>Imponibile totale (€)</td></tr>
+    <tr><td>PROVV_FIRMA_ATT</td><td>Provvigione firma attesa (€)</td></tr>
+    <tr><td>PROVV_INC_ATT</td><td>Provvigione incasso attesa (€) × anni</td></tr>
+    <tr><td>PROVV_TOT_ATT</td><td>Totale provvigione attesa per durata contratto (€)</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Colonne variabili:</strong> una colonna MM-YYYY per ogni mese presente nei rendiconti.</p>
+
+<p><strong>Colonne finali:</strong></p>
+<table>
+  <thead><tr><th>Nome</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td>RICEVUTO_TOT</td><td>Somma provvigioni ricevute (tutti i mesi)</td></tr>
+    <tr><td>SALDO</td><td>PROVV_TOT_ATT − RICEVUTO_TOT (dovrebbe tendere a 0 a contratto completato)</td></tr>
+  </tbody>
+</table>
+
+<blockquote><strong>Colore SALDO:</strong> verde = ok (≤ €0.50), giallo = residuo da ricevere, rosso = eccesso pagato.</blockquote>
+
+<h3>Contratti split (triennale → annuale + biennale)</h3>
+
+<p>SAP scompone un contratto triennale in due ordini:</p>
+<ul>
+  <li>Ordine 1 (prefisso G): abbonamento annuale 12 mesi — anno 1 — tipo NUOVO</li>
+  <li>Ordine 2 (prefisso NT): canone biennale CAN.BIENN. 24 mesi — anni 2-3 — tipo RINNOVO</li>
+</ul>
+
+<p>I due ordini condividono lo stesso <strong>N. doc.</strong> SAP (<code>num_contratto</code>) e la stessa data firma. In PAG vengono automaticamente <strong>raggruppati</strong> in una riga unica con <code>NUM_ORDINE = "ORD1 / ORD2"</code> e <code>DURATA_MESI = 36</code>.</p>
+
+<p>Chiave di raggruppamento: <code>num_contratto + cliente + mese_firma</code> — il mese firma impedisce che rinnovi successivi (che riusano lo stesso N. doc.) vengano erroneamente uniti.</p>
+
+<blockquote class="monitor"><strong>⚠ Contratti G+NT senza n_doc:</strong> per i contratti triennali firmati di recente il campo <code>n_doc</code> nel rendiconto può essere <code>0</code>. In questo caso <code>_backfillNumContratto</code> assegna una chiave sintetica <code>SYN_...</code>. Vedi §20 e §21.</blockquote>
+
+<hr>
+
+<h2 id="s8">8. DELTA e STATO — Guida dettagliata</h2>
+
+<h3>Come viene calcolato DELTA</h3>
+
+<p>Il confronto avviene sulle <strong>aliquote</strong> (tassi %), non sugli importi assoluti. Questo lo rende immune all'accumulo multi-anno.</p>
+
+<pre><code>tassoFirma    = tasso_rem SAP della prima riga YASV/YPFA del prodotto principale
+tassoIncasso  = tasso_rem SAP della prima riga KRSV/KSBF del prodotto principale
+tassoTot      = tassoFirma + tassoIncasso
+
+aliqAttesa    = aliquota totale da PRODOTTI per (prodotto, tipo, linea)
+
+DELTA         = tassoTot − aliqAttesa         [punti percentuale]
+DELTA_PCT     = DELTA / aliqAttesa × 100      [% di scostamento]</code></pre>
+
+<h3>Classificazione STATO</h3>
+
+<table>
+  <thead><tr><th>STATO</th><th>Colore</th><th>Condizione</th><th>Significato</th></tr></thead>
+  <tbody>
+    <tr><td><strong>MANCA_REND</strong></td><td>Rosso</td><td>Nessuna riga RENDICONTI per l'ordine</td><td>Contratto non trovato nei rendiconti importati</td></tr>
+    <tr><td><strong>SENZA_ALIQ</strong></td><td>Rosa</td><td>aliqAttesa = 0</td><td>Prodotto non in catalogo o aliquota = 0 (es. ONE LEGALE)</td></tr>
+    <tr><td><strong>SENZA_FIRMA</strong></td><td>Azzurro</td><td>tassoFirma = 0 e tipo = NUOVO</td><td>Nessuna riga firma (YASV/YPFA) trovata</td></tr>
+    <tr><td><strong>OK</strong></td><td>Verde</td><td>|DELTA| ≤ 2 pp</td><td>Aliquota effettiva allineata all'attesa</td></tr>
+    <tr><td><strong>PENDING</strong></td><td>Giallo</td><td>tassoTot ≤ aliqAttesa × 0.65</td><td>Solo firma pagata, incasso non ancora maturato</td></tr>
+    <tr><td><strong>MULTI_ANNO</strong></td><td>Viola</td><td>2 &lt; DELTA ≤ aliqAttesa × 2</td><td>Accumulo normale: biennale/triennale o firma+incasso su rinnovo</td></tr>
+    <tr><td><strong>VERIFICA</strong></td><td>Arancione</td><td>Tutti gli altri casi</td><td>Scostamento anomalo — analisi manuale</td></tr>
+  </tbody>
+</table>
+
+<blockquote><strong>S148 e MULTI_ANNO:</strong> i contratti S148 con firma e incasso già ricevuti appaiono normalmente come MULTI_ANNO. Questo è atteso — l'incasso S148 è 20% per rata semestrale vs. 10% annuo atteso.</blockquote>
+
+<hr>
+
+<h2 id="s9">9. Inferenza durata e tipo contratto</h2>
+
+<p><code>_inferTipoEDurata(desc_materiale)</code> classifica ogni ordine in base alla descrizione prodotto SAP:</p>
+
+<table>
+  <thead><tr><th>Pattern desc_materiale</th><th>TIPO</th><th>DURATA</th></tr></thead>
+  <tbody>
+    <tr><td><code>POST.AGG.</code> (senza RINN.)</td><td>RINNOVO</td><td>12 mesi</td></tr>
+    <tr><td><code>R.TRIE.</code> / <code>RINN.TRIE.</code></td><td>RINNOVO</td><td>36 mesi</td></tr>
+    <tr><td><code>CAN.BIEN.</code> / <code>R.BIEN.</code></td><td>RINNOVO</td><td>24 mesi</td></tr>
+    <tr><td><code>R.ANN.</code> / <code>RINN.ANN.</code></td><td>RINNOVO</td><td>12 mesi</td></tr>
+    <tr><td><code>RINN.</code> (generico)</td><td>RINNOVO</td><td>12 mesi</td></tr>
+    <tr><td>(nessun pattern)</td><td>NUOVO</td><td>36 mesi</td></tr>
+  </tbody>
+</table>
+
+<blockquote><strong>Preservazione modifiche manuali:</strong> se un contratto ha già <code>durata_mesi &gt; 0</code> impostato manualmente, la riga viene saltata — la modifica manuale viene preservata. La tab CONTRATTI è la fonte di verità per <code>durata_mesi</code>.</blockquote>
+
+<hr>
+
+<h2 id="s10">10. Codici agenzia e sub-agenti</h2>
+
+<h3>Gerarchia</h3>
+
+<pre><code>Linea master (LINEA in CS)     Sub-agente (AGENZIA in CS)
+X136                    →      X004, X008, X024, X045, X049, X091, X100, ...
+G174                    →      G020, G030, ...
+X200                    →      X200 (diretta, nessun sub-agente)
+X209                    →      X209 (ex sub-agenti G174 migrati)
+F502                    →      F442, F446, F481, ...
+S148                    →      43</code></pre>
+
+<h3>Fonte dei codici sub-agente</h3>
+<ol>
+  <li><strong>CLIENTI.codice_agenzia</strong> — fonte di verità, editabile manualmente</li>
+  <li><strong>ESTRAZIONI.cod_materiale</strong> — popolato dai file BudAnal (17 colonne)</li>
+  <li><strong>WKI - CS 2025.xlsx</strong> — usato per il backfill iniziale (one-shot, già eseguito)</li>
+</ol>
+
+<hr>
+
+<h2 id="s11">11. Importazione rendiconti</h2>
+
+<h3>Formato CSV supportato (G174 / X136 / X200)</h3>
+<ul>
+  <li>Encoding: UTF-8, separatore <code>;</code></li>
+  <li>31 colonne (header + dati), formato SAP standard</li>
+  <li>Nomi file: <code>dml*.csv</code></li>
+</ul>
+
+<h3>Codici tp_remun rilevanti</h3>
+
+<p>Tabella completa dei codici osservati nei rendiconti. Vedi §19 per il dizionario completo con tutte le varianti.</p>
+
+<table>
+  <thead><tr><th>Codice</th><th>Tipo</th><th>Significato</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td><code>YASV</code></td><td>Firma</td><td>Provvigione anticipata firma (standard)</td><td>Usato da X200/X136/G174</td></tr>
+    <tr><td><code>YPFA</code></td><td>Firma</td><td>Variante firma (S148, alcuni contratti specifici)</td><td>Trattato identico a YASV</td></tr>
+    <tr><td><code>KRSV</code></td><td>Incasso</td><td>Provvigione all'incasso (standard)</td><td></td></tr>
+    <tr><td><code>KSBF</code></td><td>Incasso</td><td>Variante incasso (S148, alcuni F502, tipo Russo Serena)</td><td></td></tr>
+    <tr><td><code>KASV</code></td><td>Storno</td><td>Storno anticipo — compensa YASV/KRSV su righe AO (chiusura contratto SAP). Valore negativo.</td><td></td></tr>
+    <tr><td><code>KPFR</code></td><td>Storno</td><td>Storno anticipazione (diverso da KASV, stesso effetto economico). Valore negativo su anticipo.</td><td>Scoperto su Russo Serena e tipi simili. <strong>Da monitorare</strong></td></tr>
+    <tr><td><code>YRSV</code></td><td>Da maturare</td><td>Non ancora liquidato — escluso dai calcoli</td><td></td></tr>
+    <tr><td><code>KRIR</code>, <code>KMDE</code>, <code>YSBF</code>, <code>YSPP</code>, <code>YSBR</code></td><td>Sconosciuto</td><td>Trovati in alcuni rendiconti — significato non ancora confermato</td><td><strong>Da monitorare</strong> — vedi §21</td></tr>
+  </tbody>
+</table>
+
+<blockquote class="warn"><strong>KASV vs KPFR:</strong> entrambi sono storni ma compaiono su tipi di contratto diversi. Il codice riconosce entrambi come storno: <code>var isStorno = (tpRemun === 'KASV' || tpRemun === 'KPFR')</code>. Se un cliente ha incassi netti anomali (troppo alti), verificare se ci sono righe KPFR nel rendiconto che non vengono dedotte.</blockquote>
+
+<blockquote><strong>Righe AO vs DF:</strong> SAP genera due tipi di riga per ogni evento contabile. Le righe DF registrano il valore normale; le righe AO le compensano alla chiusura/rinnovo del contratto. Entrambe devono coesistere in RENDICONTI — la loro somma dà il netto corretto.</blockquote>
+
+<h3>Chiave dedup RENDICONTI</h3>
+
+<pre><code>linea | mese_lavorazione | cod_cliente | doc_vend | n_doc (normalizzato) | doc_fatt | cod_materiale | tp_remun</code></pre>
+
+<p>Il campo <code>n_doc</code> è normalizzato (<code>parseInt</code>) per confrontare in modo uniforme lo stesso numero sia quando arriva come intero dal foglio (<code>10081189</code>) sia come stringa zero-padded dal CSV (<code>00000000000010081189</code>). L'inclusione di <code>n_doc</code> nella chiave è essenziale per distinguere le righe DF dalle righe AO (stesso <code>doc_vend</code> ma <code>n_doc</code> diverso).</p>
+
+<h3>Formato S148 (<code>dips148*.csv</code>)</h3>
+
+<table>
+  <thead><tr><th>Aspetto</th><th>Dettaglio</th></tr></thead>
+  <tbody>
+    <tr><td>Nome file</td><td><code>dips148MMYYYY.csv</code> — il mese di lavorazione è estratto dal filename (→ YYYYMM)</td></tr>
+    <tr><td>Cartella Drive</td><td>ID <code>1ZUkyA3OnvJWGGb7UMxJk3RQI193K0ObB</code></td></tr>
+    <tr><td>Linea in RENDICONTI</td><td><code>S148</code></td></tr>
+    <tr><td>tp_remun</td><td>YASV (firma, incassato=0) / KSBF (incasso, incassato&gt;0)</td></tr>
+    <tr><td>Tipo contratti</td><td>Solo NUOVI — nessun rinnovo</td></tr>
+    <tr><td>Sub-agente</td><td>Codice <code>43</code></td></tr>
+    <tr><td>Contratti 2025</td><td>5 attivi</td></tr>
+  </tbody>
+</table>
+
+<h3>Formato F502 (<code>ripf502*.xlsx</code>)</h3>
+
+<table>
+  <thead><tr><th>Aspetto</th><th>Dettaglio</th></tr></thead>
+  <tbody>
+    <tr><td>Nome file</td><td><code>ripf502*.xlsx</code></td></tr>
+    <tr><td>Cartella Drive</td><td>ID <code>1TX2cZK2lNcXsDCuoi-eI-H_EDf2SM-nz</code></td></tr>
+    <tr><td>Sheet "Produzione"</td><td>13 colonne — firme; aggrega per (cod_cliente, Documento_origine) → riga YASV per contratto</td></tr>
+    <tr><td>Sheet "Incassi"</td><td>12 colonne — incassi; aggrega per (cod_cliente, Documento_origine) → riga KSBF per contratto</td></tr>
+    <tr><td>Conversione</td><td>xlsx → Google Sheets via Drive REST API</td></tr>
+    <tr><td>Sub-agenti</td><td>F442, F446, F481</td></tr>
+    <tr><td>Contratti 2025</td><td>20 attivi (marzo–dicembre)</td></tr>
+    <tr><td>STATO atteso</td><td>SENZA_ALIQ (nessun <code>cod_materiale</code> disponibile — tracking per contratto totale)</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="s12">12. Tab PROVVIGIONI</h2>
+
+<p>Tabella flat rigenerata da <code>_populateProvvigioni</code> (idempotente, sovrascrive tutto). Una riga per <code>(num_ordine, mese_lavorazione, tipo_provv, cod_materiale)</code>.</p>
+
+<p>Colonne principali: <code>num_ordine</code>, <code>codice_cliente</code>, <code>ragione_sociale</code>, <code>linea</code>, <code>agenzia</code>, <code>tipo_contratto</code>, <code>mese_lavorazione</code>, <code>tipo_provv</code> (FIRMA/INCASSO), <code>cod_materiale</code>, <code>desc_materiale</code>, <code>imponibile</code>, <code>aliquota_attesa</code>, <code>importo_atteso</code>, <code>importo_effettivo</code>, <code>delta</code>.</p>
+
+<p>Usata per analisi aggregate e verifica per prodotto/mese. Non editare manualmente.</p>
+
+<hr>
+
+<h2 id="s13">13. Variabili di configurazione</h2>
+
+<p>Salvate in Apps Script → Proprietà progetto:</p>
+
+<table>
+  <thead><tr><th>Chiave</th><th>Valore</th><th>Come impostare</th></tr></thead>
+  <tbody>
+    <tr><td><code>CS_SPREADSHEET_ID</code></td><td>ID del foglio KS-CS</td><td>Eseguire <code>_impostaCS</code> con l'ID reale</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="s14">14. Tab SEGNALAZIONI — anomalie provvigionali</h2>
+
+<p>Traccia le anomalie provvigionali aperte verso WKI. Alimentata da <code>_importaProblemiDaCS</code> dopo ogni <code>_generaCS</code>.</p>
+
+<h3>Schema colonne (A–U)</h3>
+
+<table>
+  <thead><tr><th>Col</th><th>Campo</th><th>Tipo</th><th>Note</th></tr></thead>
+  <tbody>
+    <tr><td>A</td><td><code>stato</code></td><td>APERTA / LAVORAZIONE / CHIUSA</td><td><strong>Menu a tendina</strong> — selezionare CHIUSA sposta la riga automaticamente in SEGNALAZIONI_CHIUSE</td></tr>
+    <tr><td>B</td><td><code>tipo_problema</code></td><td>vedi sotto</td><td>Assegnato automaticamente; modificabile manualmente</td></tr>
+    <tr><td>C</td><td><code>ragione_sociale</code></td><td>testo</td><td></td></tr>
+    <tr><td>D</td><td><code>linea</code></td><td>X200 / X136 / G174 / S148 / F502</td><td></td></tr>
+    <tr><td>E</td><td><code>agenzia</code></td><td>codice sub-agente</td><td></td></tr>
+    <tr><td>F</td><td><code>mese_rif</code></td><td>YYYY-MM</td><td>Mese firma contratto</td></tr>
+    <tr><td>G</td><td><code>delta</code></td><td>€</td><td><code>importo_ricevuto − importo_atteso</code>. <strong>Negativo = mancano soldi</strong></td></tr>
+    <tr><td>H</td><td><code>importo_atteso</code></td><td>€</td><td>Provvigione totale attesa (PROVV_TOT_ATT da PAG)</td></tr>
+    <tr><td>I</td><td><code>importo_ricevuto</code></td><td>€</td><td>Provvigione cumulativa ricevuta (RICEVUTO_TOT da PAG)</td></tr>
+    <tr><td>J</td><td><code>aliquota_attesa</code></td><td>%</td><td>Tasso annuo da catalogo PRODOTTI</td></tr>
+    <tr><td>K</td><td><code>aliquota_applicata</code></td><td>%</td><td>Tasso effettivo applicato da SAP. Se ≠ J, SAP ha usato un tasso diverso</td></tr>
+    <tr><td>L</td><td><code>prodotto</code></td><td>testo</td><td>Prodotto principale del contratto</td></tr>
+    <tr><td>M</td><td><code>descrizione</code></td><td>testo</td><td><strong>Note automatiche generate dall'import</strong> (sfondo crema, grassetto)</td></tr>
+    <tr><td>N</td><td><code>note</code></td><td>testo</td><td>Note manuali — aggiungere qui chiarimenti e aggiornamenti</td></tr>
+    <tr><td>O</td><td><code>data_risoluzione</code></td><td>data</td><td>Compilare quando si chiude la segnalazione</td></tr>
+    <tr><td>P</td><td><code>id</code></td><td>SEG-XXXX</td><td>Identificativo progressivo</td></tr>
+    <tr><td>Q</td><td><code>data_apertura</code></td><td>data</td><td>Data creazione automatica</td></tr>
+    <tr><td>R</td><td><code>num_ordine</code></td><td>testo</td><td>Può contenere "ord1 / ord2" per contratti split</td></tr>
+    <tr><td>S</td><td><code>num_contratto</code></td><td>testo</td><td>N. doc. SAP (contratto quadro)</td></tr>
+    <tr><td>T</td><td><code>cod_cliente</code></td><td>testo</td><td></td></tr>
+    <tr><td>U</td><td><code>cod_materiale</code></td><td>testo</td><td>Da compilare manualmente se necessario</td></tr>
+  </tbody>
+</table>
+
+<h3>tipo_problema — valori e significato</h3>
+
+<table>
+  <thead><tr><th>Valore</th><th>Assegnazione</th><th>Cosa significa</th><th>Cosa verificare</th></tr></thead>
+  <tbody>
+    <tr><td><code>PROVV_MANCANTE</code></td><td>Automatica</td><td>Nessun pagamento ricevuto (RICEVUTO_TOT = 0) oppure nessun rendiconto SAP trovato</td><td>Verificare che il contratto sia stato recepito da SAP; controllare se il CSV è stato importato</td></tr>
+    <tr><td><code>%_ERRATA</code></td><td>Automatica</td><td>Qualcosa ricevuto ma meno del dovuto (SALDO PAG &gt; 0)</td><td>Confrontare colonne J (aliquota_attesa) e K (aliquota_applicata)</td></tr>
+    <tr><td><code>INCASSO_MANCANTE</code></td><td>Manuale</td><td>Quota firma ricevuta correttamente, ma la quota incasso non è mai arrivata</td><td>Verificare se il contratto è in fase di maturazione</td></tr>
+    <tr><td><code>INCASSO_ERRATO</code></td><td>Manuale</td><td>Incasso arrivato ma a importo sbagliato</td><td>Controllare importo ricevuto vs atteso per la singola tranche incasso</td></tr>
+    <tr><td><code>RICHIESTA_INFORMAZIONI</code></td><td>Automatica</td><td>Pagato più del dovuto (delta positivo) oppure ORD stato SENZA_FIRMA</td><td>Anomalia secondaria: non mancano soldi, ma serve chiarimento da WKI</td></tr>
+    <tr><td><code>ALTRO</code></td><td>Manuale</td><td>Anomalia non classificabile</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<blockquote><strong>Logica sign:</strong> PAG SALDO = PROVV_TOT_ATT − RICEVUTO_TOT (positivo = non ricevuto). SEGNALAZIONI delta = importo_ricevuto − importo_atteso (negativo = mancante).</blockquote>
+
+<h3>Chiusura segnalazioni</h3>
+
+<p>Quando si seleziona <strong>CHIUSA</strong> nella colonna A: la colonna O (<code>data_risoluzione</code>) viene valorizzata automaticamente con la data odierna e la riga viene spostata in <strong>SEGNALAZIONI_CHIUSE</strong> via trigger <code>onEdit</code>.</p>
+
+<blockquote><strong>Dedup:</strong> <code>_importaProblemiDaCS</code> legge sia SEGNALAZIONI sia SEGNALAZIONI_CHIUSE prima di importare — un contratto già chiuso non viene mai reimportato. Per reimportare tutto: cancellare le righe dati di entrambe le tab, poi rieseguire.</blockquote>
+
+<hr>
+
+<h2 id="s15">15. ALIQUOTE_STORICHE — gestione cambi tariffe</h2>
+
+<p>Permette di calcolare la provvigione corretta in base alle aliquote <strong>vigenti al momento della firma</strong> del contratto. Fondamentale quando le tariffe cambiano.</p>
+
+<h3>Logica di lookup</h3>
+
+<pre><code>_lookupAliquotaStorica(codMateriale, dataFirma):
+  cerca in ALIQUOTE_STORICHE la riga dove:
+    cod_materiale = codMateriale
+    data_inizio ≤ dataFirma
+    data_fine ≥ dataFirma  oppure  data_fine è vuota
+  → restituisce le aliquote di quella riga</code></pre>
+
+<p>Integrata in: <code>apiGetContrattoDetail()</code>, <code>generaCS.gs</code>, <code>generaStorico.gs</code>.</p>
+
+<h3>Procedura cambio tariffe (es. 01/01/2027)</h3>
+<ol>
+  <li>In ALIQUOTE_STORICHE, impostare <code>data_fine = 31/12/2026</code> su tutte le righe con <code>data_fine</code> vuota</li>
+  <li>Aggiornare PRODOTTI con le nuove aliquote</li>
+  <li>Copiare le nuove righe in ALIQUOTE_STORICHE con <code>data_inizio = 01/01/2027</code> e <code>data_fine</code> vuota</li>
+  <li>Eseguire <code>_generaCS</code></li>
+</ol>
+
+<hr>
+
+<h2 id="s16">16. Web frontend</h2>
+
+<p>Single-page app Alpine.js v3 servita da GitHub Pages: <strong><code>https://niubbone.github.io/KSALES/</code></strong></p>
+
+<p><strong>Repository:</strong> <code>C:\PROJECTS\kleos-sales\frontend\</code> → <code>https://github.com/niubbone/KSALES.git</code> (branch <code>main</code>)</p>
+
+<h3>Stack tecnico</h3>
+<ul>
+  <li>Alpine.js v3 — reattività dichiarativa</li>
+  <li>Tailwind CSS CDN — stili</li>
+  <li>Chart.js — grafici economica</li>
+  <li>Fetch API → GAS Web App (<code>redirect: 'follow'</code>)</li>
+  <li>localStorage cache: 15 minuti per <code>getContratti</code> / <code>getClienti</code></li>
+</ul>
+
+<h3>Deployment GAS Web App</h3>
+
+<pre><code>clasp push                                                              # carica il codice
+clasp deploy --deploymentId {DEPLOYMENT_ID} --description "vN"         # aggiorna il deployment</code></pre>
+
+<blockquote class="warn"><strong>Non creare mai nuovi deployment senza <code>--deploymentId</code></strong> — creerebbe un nuovo URL e romperebbe il frontend. Il deployment ID attivo è:<br><code>AKfycbzhJBtZ7-6pn5pCiRKQNHm1CeRLiNbXaiin-gfktPE0SL8b1-4KvFdTaFEBcsoYIlqv</code></blockquote>
+
+<h3>Viste dell'applicazione</h3>
+
+<table>
+  <thead><tr><th>Vista</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td><code>lista</code></td><td>Elenco completo contratti con filtro testo</td></tr>
+    <tr><td><code>clienti</code></td><td>Elenco clienti con filtro testo</td></tr>
+    <tr><td><code>cliente-detail</code></td><td>Contratti del cliente raggruppati per contratto commerciale (riga espandibile)</td></tr>
+    <tr><td><code>contratto-detail</code></td><td>Dettaglio singolo ordine SAP: composizione, firma, incassi, situazione economica</td></tr>
+    <tr><td><code>contratto-comm-detail</code></td><td>Vista aggregata del contratto commerciale (G + NT ordini unificati) — vedi §20</td></tr>
+  </tbody>
+</table>
+
+<h3>Lista clienti — righe espandibili</h3>
+
+<p>Nella vista <code>cliente-detail</code> i contratti sono raggruppati per <code>num_contratto</code>:</p>
+<ul>
+  <li><strong>Riga gruppo</strong> (<code>type='gruppo'</code>): mostra il contratto commerciale con imponibile aggregato. Clic → apre la vista <code>contratto-comm-detail</code>.</li>
+  <li><strong>Riga sub</strong> (<code>type='sub'</code>): ordine SAP individuale (G o NT), visibile solo dopo espansione con la freccia. Clic → apre il <code>contratto-detail</code> del singolo ordine.</li>
+  <li>La freccia di espansione appare solo se il gruppo contiene più di un ordine (<code>multiOrdine = true</code>).</li>
+</ul>
+
+<p>Contratti senza <code>num_contratto</code> appaiono come gruppo singolo e aprono direttamente il <code>contratto-detail</code>.</p>
+
+<h3>Risposta JSON — getContrattoDetail</h3>
+
+<pre><code>{
+  "contratto": { ...dati da CONTRATTI... },
+  "composizione": [{ "cod_materiale", "desc_materiale", "imponibile", "categoria" }],
+  "firma": { "mese": "202501", "importo": 450.00, "per_categoria": { "abbonamento": 360, ... } },
+  "incassi": [{ "mese": "202502", "lordo": 150.00, "storno": -50.00, "netto": 100.00, "categoria": "abbonamento" }],
+  "provv_ricevuta": 550.00,
+  "provv_attesa": 900.00,
+  "saldo": -350.00
+}</code></pre>
+
+<h3>Risposta JSON — getContrattoCommerciale</h3>
+
+<pre><code>{
+  "num_contratto": "10081189",          // o "SYN_GP..." se sintetico
+  "ordini": [ ...contratti G e NT... ],
+  "composizione": [ ...materiali aggregati... ],
+  "firma": { "mese": "202312", "importo": 810.00 },
+  "incassi": [ ...incassi aggregati con storno... ],
+  "provv_attesa": 1087.50,
+  "provv_ricevuta": 630.00,
+  "saldo": -457.50,
+  "categorie": [
+    { "categoria": "abbonamento", "provv_attesa": 810.00, "provv_ricevuta": 500.00, "saldo": -310.00 },
+    { "categoria": "hypercare",   "provv_attesa": 120.00, "provv_ricevuta": 80.00,  "saldo": -40.00 },
+    { "categoria": "import_dati", "provv_attesa": 157.50, "provv_ricevuta": 50.00,  "saldo": -107.50 }
+  ]
+}</code></pre>
+
+<hr>
+
+<h2 id="s17">17. Architettura e prospettiva v2.0</h2>
+
+<table>
+  <thead><tr><th>Oggi (Sheets + GAS)</th><th>v2.0 (frontend + backend)</th></tr></thead>
+  <tbody>
+    <tr><td>KS-DB tab (RENDICONTI, CONTRATTI…)</td><td>Tabelle relazionali (PostgreSQL / Supabase)</td></tr>
+    <tr><td>KS-CS tab ORD</td><td>Endpoint <code>GET /api/contracts?line=X200</code></td></tr>
+    <tr><td>KS-CS tab PAG</td><td>Endpoint <code>GET /api/contracts/:id/payments</code></td></tr>
+    <tr><td><code>_generaCS</code></td><td>Query calcolata on-demand — non più necessario pre-generare</td></tr>
+    <tr><td>SEGNALAZIONI + SEGNALAZIONI_CHIUSE</td><td>Unica tabella con colonna <code>stato</code> e filtro frontend</td></tr>
+    <tr><td>ALIQUOTE_STORICHE</td><td>Tabella <code>aliquote</code> con <code>valid_from</code> / <code>valid_to</code></td></tr>
+    <tr><td>Apps Script triggers / onEdit</td><td>Webhook / cron job / logica backend</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="s18">18. Limitazioni note (pre-1.0)</h2>
+
+<table>
+  <thead><tr><th>Limitazione</th><th>Stato</th></tr></thead>
+  <tbody>
+    <tr><td><strong>NOTE nel CS:</strong> azzerate ad ogni <code>_generaCS</code></td><td>By design</td></tr>
+    <tr><td><strong>Contratti NT senza data_firma:</strong> usano data_reg come proxy</td><td>Parziale</td></tr>
+    <tr><td><strong>X209:</strong> gestito tramite X209_STAGING (incolla manuale)</td><td>Parziale</td></tr>
+    <tr><td><strong>F502:</strong> nessun <code>cod_materiale</code> disponibile, STATO sempre SENZA_ALIQ</td><td>By design</td></tr>
+    <tr><td><strong>ALIQUOTE_STORICHE lookup:</strong> integrato in <code>apiGetContrattoDetail</code>, <code>generaCS</code>, <code>generaStorico</code></td><td>✓ Fatto</td></tr>
+    <tr><td><strong>FATTURE:</strong> tab presente ma nessuna funzione di popolamento — inserimento manuale</td><td>Da fare</td></tr>
+    <tr><td><strong>Contratti G+NT senza n_doc SAP:</strong> accoppiati con chiave sintetica <code>SYN_...</code> — da monitorare e correggere quando arriva il n_doc reale</td><td>⚠ Monitorare — vedi §21</td></tr>
+    <tr><td><strong>Codici tp_remun sconosciuti</strong> (KRIR, KMDE, YSBF, YSPP, YSBR): ignorati dai calcoli — impatto economico non noto</td><td>⚠ Monitorare — vedi §21</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="s19">19. Codici WKI/SAP — Dizionario operativo</h2>
+
+<h3>Prefissi num_ordine_wki</h3>
+
+<p>Il numero ordine WKI (<code>doc_vend</code> in SAP) ha sempre un prefisso alfabetico che identifica il tipo di contratto e la modalità amministrativa:</p>
+
+<table>
+  <thead><tr><th>Prefisso</th><th>Tipo SAP</th><th>TIPO contratto</th><th>Significato</th></tr></thead>
+  <tbody>
+    <tr><td><code>G</code> (non NT)</td><td>Standard</td><td>NUOVO</td><td>Contratto nuovo — anno 1 di un triennale o contratto annuale standard. <strong>Il prefisso più comune.</strong></td></tr>
+    <tr><td><code>NT</code></td><td>Biennale</td><td>RINNOVO</td><td>Anni 2-3 di un contratto triennale. Sempre accoppiato a un ordine G dello stesso cliente e data firma.</td></tr>
+    <tr><td><code>GF</code></td><td>Variante G</td><td>NUOVO</td><td>Variante firma — stessa famiglia G</td></tr>
+    <tr><td><code>GK</code></td><td>Variante G</td><td>NUOVO</td><td>Variante — stessa famiglia G</td></tr>
+    <tr><td><code>GL</code></td><td>Variante G</td><td>NUOVO</td><td>Variante — stessa famiglia G</td></tr>
+    <tr><td><code>GX</code></td><td>Variante G</td><td>NUOVO</td><td>Variante — stessa famiglia G</td></tr>
+    <tr><td>Numerico puro</td><td>Vecchio stile</td><td>NUOVO / RINNOVO</td><td>Ordini storici precedenti all'introduzione dei prefissi alfabetici</td></tr>
+    <tr><td><code>PL</code>, <code>PF</code>, <code>P</code>, <code>PK</code></td><td>P-series</td><td>Vario</td><td>Serie P — tipicamente linee diverse o modalità particolari. Significato da verificare per ciascun contratto.</td></tr>
+  </tbody>
+</table>
+
+<blockquote class="monitor"><strong>Regola pratica G↔NT:</strong> se un cliente ha sia un ordine <code>G...</code> (NUOVO) che un ordine <code>NT...</code> (RINNOVO) firmati entro 45 giorni, sono quasi certamente il lato 1 e il lato 2-3 dello stesso contratto triennale.</blockquote>
+
+<h3>Struttura contratto triennale in SAP</h3>
+
+<p>WKI suddivide i contratti triennali in due ordini di vendita separati:</p>
+
+<table>
+  <thead><tr><th>Ordine</th><th>Prefisso</th><th>Tipo</th><th>Durata</th><th>Desc. materiale</th><th>Contenuto</th></tr></thead>
+  <tbody>
+    <tr><td>Ordine 1</td><td><code>G...</code></td><td>NUOVO</td><td>12 mesi</td><td>abbonamento annuale</td><td>Anno 1 del triennale. Firma riconosciuta qui.</td></tr>
+    <tr><td>Ordine 2</td><td><code>NT...</code></td><td>RINNOVO</td><td>24 mesi</td><td><code>CAN.BIEN.</code></td><td>Anni 2-3. Incassi biennali riconosciuti qui.</td></tr>
+  </tbody>
+</table>
+
+<p>I due ordini condividono lo stesso <strong>N. doc. SAP</strong> (<code>num_contratto</code>), che è lo scheduling agreement (contratto quadro) che li tiene uniti nell'anagrafica SAP.</p>
+
+<h3>Taxonomy completa tp_remun</h3>
+
+<table>
+  <thead><tr><th>Codice</th><th>Famiglia</th><th>Effetto economico</th><th>Incassato SAP</th><th>Dove compare</th><th>Stato sistema</th></tr></thead>
+  <tbody>
+    <tr><td><code>YASV</code></td><td>Y-firma</td><td>Provvigione firma (+)</td><td>= 0</td><td>X200, X136, G174</td><td>✓ Riconosciuto come firma</td></tr>
+    <tr><td><code>YPFA</code></td><td>Y-firma</td><td>Provvigione firma (+)</td><td>= 0</td><td>S148, alcuni specifici (es. Russo Serena)</td><td>✓ Riconosciuto come firma</td></tr>
+    <tr><td><code>KRSV</code></td><td>K-incasso</td><td>Provvigione incasso (+)</td><td>&gt; 0</td><td>X200, X136, G174</td><td>✓ Riconosciuto come incasso</td></tr>
+    <tr><td><code>KSBF</code></td><td>K-incasso</td><td>Provvigione incasso (+)</td><td>&gt; 0</td><td>S148, F502, tipo Russo Serena</td><td>✓ Riconosciuto come incasso</td></tr>
+    <tr><td><code>KASV</code></td><td>K-storno</td><td>Storno anticipo (−)</td><td>qualsiasi</td><td>Righe AO — chiusura/rinnovo contratto SAP</td><td>✓ Riconosciuto come storno</td></tr>
+    <tr><td><code>KPFR</code></td><td>K-storno</td><td>Storno anticipazione (−)</td><td>qualsiasi</td><td>Tipo Russo Serena e simili — variante di KASV</td><td>✓ Riconosciuto come storno (aggiunto 05/2026)</td></tr>
+    <tr><td><code>YRSV</code></td><td>Y-maturare</td><td>Da maturare — non liquidato</td><td>= 0</td><td>Vari</td><td>⊘ Ignorato (escluso dai calcoli)</td></tr>
+    <tr><td><code>KRIR</code></td><td>K-?</td><td>Sconosciuto</td><td>?</td><td>Trovato sporadicamente</td><td>⚠ Da monitorare</td></tr>
+    <tr><td><code>KMDE</code></td><td>K-?</td><td>Sconosciuto</td><td>?</td><td>Trovato sporadicamente</td><td>⚠ Da monitorare</td></tr>
+    <tr><td><code>YSBF</code></td><td>Y-?</td><td>Sconosciuto</td><td>?</td><td>Trovato sporadicamente</td><td>⚠ Da monitorare</td></tr>
+    <tr><td><code>YSPP</code></td><td>Y-?</td><td>Sconosciuto</td><td>?</td><td>Trovato sporadicamente</td><td>⚠ Da monitorare</td></tr>
+    <tr><td><code>YSBR</code></td><td>Y-?</td><td>Sconosciuto</td><td>?</td><td>Trovato sporadicamente</td><td>⚠ Da monitorare</td></tr>
+  </tbody>
+</table>
+
+<blockquote class="monitor"><strong>Come aggiornare questa tabella:</strong> quando compare un codice sconosciuto, usare l'endpoint <code>debugRendiconti?rag_soc=NOMECLIENTE</code> per vedere tutte le righe RENDICONTI di quel cliente con tutti i campi SAP. Confrontare <code>tp_remun</code>, <code>tasso_rem</code>, <code>anticipo</code>, <code>incassato</code> per capire l'effetto economico, poi aggiornare questa tabella e il codice GAS (<code>isStorno</code>, classificazione firma/incasso).</blockquote>
+
+<h3>Regola di classificazione attuale (GAS)</h3>
+
+<pre><code>var isFirma   = (tpRemun === 'YASV' || tpRemun === 'YPFA');
+var isIncasso = (tpRemun === 'KRSV' || tpRemun === 'KSBF');
+var isStorno  = (tpRemun === 'KASV' || tpRemun === 'KPFR');
+// Tutti gli altri: ignorati</code></pre>
+
+<h3>Righe AO vs DF in SAP</h3>
+
+<p>SAP genera due tipi di riga per ogni evento contabile:</p>
+<ul>
+  <li><strong>DF</strong>: riga di valore normale. Registra la provvigione o l'incasso.</li>
+  <li><strong>AO</strong>: riga di storno. Compensa la DF alla chiusura o al rinnovo del contratto SAP. Stessa <code>doc_vend</code>, <code>n_doc</code> diverso.</li>
+</ul>
+
+<p>Entrambe devono coesistere in RENDICONTI — la loro somma dà il netto corretto. La chiave dedup include <code>n_doc</code> proprio per tenere distinte DF e AO dello stesso ordine.</p>
+
+<h3>Modalità amministrative WKI — varianti note</h3>
+
+<p>Diversi clienti hanno modalità SAP diverse che producono combinazioni di tp_remun diverse. Casi osservati:</p>
+
+<table>
+  <thead><tr><th>Modalità</th><th>Firma</th><th>Incasso</th><th>Storno</th><th>Cliente esempio</th></tr></thead>
+  <tbody>
+    <tr><td>Standard X136/G174</td><td>YASV</td><td>KRSV</td><td>KASV</td><td>Maggioranza dei clienti</td></tr>
+    <tr><td>Tipo S148</td><td>YASV</td><td>KSBF</td><td>KASV</td><td>Contratti S148</td></tr>
+    <tr><td>Tipo "Russo Serena"</td><td>YPFA</td><td>KSBF</td><td>KPFR</td><td>Russo Serena — probabilmente una sottocategoria gestita con processo SAP diverso</td></tr>
+  </tbody>
+</table>
+
+<blockquote class="monitor"><strong>Aggiornare questa tabella</strong> ogni volta che si scopre una nuova combinazione. La chiave è: se gli incassi di un cliente sembrano troppo alti (storni non dedotti), fare il debug con <code>debugRendiconti</code> e cercare tp_remun non standard.</blockquote>
+
+<hr>
+
+<h2 id="s20">20. Contratto commerciale aggregato</h2>
+
+<h3>Cos'è il contratto commerciale</h3>
+
+<p>Dal punto di vista commerciale, un triennale è un unico contratto. SAP però lo divide in due ordini di vendita (G e NT). Il <strong>contratto commerciale aggregato</strong> è la vista che li riunifica mostrando i dati economici complessivi.</p>
+
+<p>Il legame tra G e NT è il campo <code>num_contratto</code> in CONTRATTI, che corrisponde all'<strong>N. doc.</strong> SAP (scheduling agreement / contratto quadro).</p>
+
+<h3>Backfill num_contratto — tre pass</h3>
+
+<p><code>_backfillNumContratto</code> popola <code>num_contratto</code> in CONTRATTI con tre strategie progressive:</p>
+
+<table>
+  <thead><tr><th>Pass</th><th>Strategia</th><th>Quando funziona</th><th>Output</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Pass 1</strong></td>
+      <td>Cerca il campo <code>n_doc</code> (N. doc. SAP) in RENDICONTI per ogni <code>doc_vend</code>. Assegna l'n_doc come <code>num_contratto</code>.</td>
+      <td>Contratto presente in almeno un rendiconto con n_doc ≠ 0</td>
+      <td>Valore numerico reale (es. <code>10081189</code>)</td>
+    </tr>
+    <tr>
+      <td><strong>Pass 2</strong></td>
+      <td>Per i contratti senza <code>num_contratto</code>, cerca un contratto dello stesso cliente con <code>num_contratto</code> già impostato e data firma entro 45 giorni. Propaga quel valore.</td>
+      <td>Un ordine del gruppo è già stato risolto da Pass 1 e l'altro non è ancora in RENDICONTI</td>
+      <td>Stesso valore numerico del contratto già risolto</td>
+    </tr>
+    <tr>
+      <td><strong>Pass 3</strong> <span class="new-tag">NUOVO</span></td>
+      <td>Per i contratti G-NUOVO ancora senza <code>num_contratto</code>, cerca un contratto NT-RINNOVO dello stesso cliente entro 45 giorni e anche lui senza <code>num_contratto</code>. Assegna a entrambi una chiave sintetica <code>SYN_[numOrdineG]</code>.</td>
+      <td>Contratti nuovi: n_doc = 0 nel rendiconto, né G né NT hanno ancora un valore reale</td>
+      <td>Chiave sintetica (es. <code>SYN_GP123456</code>) — sovrascrivibile in futuro</td>
+    </tr>
+  </tbody>
+</table>
+
+<blockquote class="monitor"><strong>Chiavi SYN_ — da monitorare:</strong> quando il rendiconto successivo include questi contratti con un n_doc SAP reale, rieseguire <code>_backfillNumContratto</code>. Pass 1 sovrascriverà la chiave SYN_ con il valore reale; Pass 3 la aggiorna di conseguenza. Dopo, eseguire <code>clearAllCache()</code> per invalidare le risposte API cached con la chiave sintetica.</blockquote>
+
+<h3>API getContrattoCommerciale</h3>
+
+<p>Endpoint: <code>?action=getContrattoCommerciale&amp;num_contratto=VALORE</code></p>
+
+<p>Funzione GAS: <code>apiGetContrattoCommerciale(numContratto)</code> in <code>apiDB.gs</code></p>
+
+<p>Logica:</p>
+<ol>
+  <li>Legge tutti gli ordini in CONTRATTI con <code>num_contratto = numContratto</code></li>
+  <li>Per ciascuno, scansiona RENDICONTI filtrando per <code>doc_vend</code> (e secondariamente per <code>n_doc</code> per catturare righe KASV con dvend diverso)</li>
+  <li>Deduplicazione imponibili: mappa <code>matDvendSeen[codMat|dvend]</code> per evitare di sommare due volte lo stesso materiale dello stesso ordine; accumula però materiali identici su ordini diversi (G e NT)</li>
+  <li>Selezione data firma: preferisce sempre la firma dell'ordine NUOVO (G prefix)</li>
+  <li>Calcolo <code>provv_attesa</code> per categoria (Option C)</li>
+</ol>
+
+<h3>Formula provv_attesa per contratti aggregati (Option C)</h3>
+
+<p>Per i contratti triennali (G+NT), l'imponibile dell'ordine NT non è noto al momento della firma e i due anni di rinnovo potrebbero avere aliquote diverse. Si usa la <strong>formula Option C</strong> che deriva la provvigione attesa complessiva dalla firma già ricevuta:</p>
+
+<pre><code>Per ogni categoria di materiale:
+  firma_cat       = provvigione firma ricevuta per quella categoria
+  aliqF_nuovo     = aliquota firma NUOVO per quella categoria (da PRODOTTI)
+  aliqI_nuovo     = aliquota incasso NUOVO per quella categoria (da PRODOTTI)
+
+  provv_attesa_cat = firma_cat / aliqF_nuovo × (aliqF_nuovo + aliqI_nuovo)
+
+Esempio (ABB, gestite, NUOVO):
+  aliqF = 10%, aliqI = 10% → totale atteso = aliqF + aliqI = 20%
+  Se firma ricevuta = €810 → provv_attesa = 810 / 0.10 × 0.20 = €1.620</code></pre>
+
+<blockquote><strong>Perché Option C:</strong> la formula è robusta perché usa sempre le aliquote NUOVO (quelle del G-ordine), anche per la parte biennale NT che tecnicamente è RINNOVO. La firma è il dato certo — da essa si risale all'imponibile implicito e poi si proietta il totale atteso.</blockquote>
+
+<h3>Vista contratto-comm-detail nel frontend</h3>
+
+<p>Accessibile cliccando su un gruppo nella lista clienti (o su un contratto nella lista generale se ha <code>num_contratto</code>).</p>
+
+<ul>
+  <li><strong>Header:</strong> mostra <code>num_contratto</code> (senza prefisso SYN_ per leggibilità). Badge arancione "senza n_doc" se la chiave è sintetica.</li>
+  <li><strong>Ordini SAP:</strong> tabella con tutti gli ordini G e NT, tipo badge, durata, data firma, imponibile.</li>
+  <li><strong>Tab Composizione:</strong> lista materiali aggregati con imponibile totale.</li>
+  <li><strong>Tab Economica:</strong> tabella per categoria (Abbonamento / Formazione / Hypercare / Import dati) con colonne Provv. Attesa / Provv. Ricevuta / Saldo. Totali in fondo. Grafico incassi per mese.</li>
+</ul>
+
+<h3>Cache e invalidazione</h3>
+
+<p>Le risposte di <code>getContrattoCommerciale</code> sono cached 30 minuti in GAS CacheService con chiave <code>comm_[numContratto]</code>. Dopo ogni import o modifica dati eseguire <code>clearAllCache()</code>, che ora svuota sia le chiavi <code>det_...</code> che <code>comm_...</code>.</p>
+
+<hr>
+
+<h2 id="s21">21. Situazioni da monitorare</h2>
+
+<p>Questa sezione traccia le anomalie e le incognite note nel sistema che richiedono attenzione periodica.</p>
+
+<h3>🟠 Contratti G+NT con chiave sintetica (SYN_)</h3>
+
+<p><strong>Quando si manifesta:</strong> contratti triennali firmati di recente dove il campo <code>n_doc</code> nei rendiconti è <code>0</code> o vuoto. <code>_backfillNumContratto</code> Pass 3 assegna una chiave sintetica <code>SYN_GP...</code>.</p>
+
+<p><strong>Impatto visivo nel frontend:</strong> il contratto appare aggregato correttamente nella lista clienti. Nella vista contratto-comm-detail compare il badge arancione "senza n_doc".</p>
+
+<p><strong>Come risolvere:</strong></p>
+<ol>
+  <li>Aspettare il prossimo rendiconto mensile (di solito entro 30-60 giorni l'n_doc SAP appare)</li>
+  <li>Dopo l'import del rendiconto, eseguire <code>_backfillNumContratto</code></li>
+  <li>Pass 1 troverà l'n_doc reale e sovrascriverà la chiave SYN_</li>
+  <li>Pass 2 propagherà il valore all'ordine NT</li>
+  <li>Eseguire <code>clearAllCache()</code> e ricaricare il frontend</li>
+</ol>
+
+<p><strong>Contratti noti con SYN_ (maggio 2026):</strong></p>
+<ul>
+  <li>MENCHI MATTEO — triennale dicembre 2025</li>
+  <li>DI DIO MARGARETH — triennale dicembre 2025</li>
+  <li>Eventuali altri contratti firmati negli ultimi mesi con n_doc assente nel rendiconto</li>
+</ul>
+
+<p><strong>Come verificare l'elenco attuale:</strong> nel foglio CONTRATTI di KS-DB filtrare la colonna D (NUM_CONTRATTO) per valori che iniziano con <code>SYN_</code>.</p>
+
+<hr>
+
+<h3>🟠 Codici tp_remun sconosciuti</h3>
+
+<p><strong>Codici osservati ma non classificati:</strong> <code>KRIR</code>, <code>KMDE</code>, <code>YSBF</code>, <code>YSPP</code>, <code>YSBR</code></p>
+
+<p><strong>Impatto attuale:</strong> questi codici vengono ignorati dai calcoli. Se hanno valore economico positivo, l'impatto è che il sistema sottostima le provvigioni ricevute. Se negativo, le sovrastima.</p>
+
+<p><strong>Come investigare un codice sconosciuto:</strong></p>
+<ol>
+  <li>Aprire il frontend o una query diretta: <code>?action=debugRendiconti&amp;rag_soc=NOME_CLIENTE</code></li>
+  <li>Cercare righe con il tp_remun in questione</li>
+  <li>Osservare i campi <code>tasso_rem</code>, <code>anticipo</code>, <code>incassato</code> per capire l'effetto</li>
+  <li>Se è uno storno: aggiungere alla condizione <code>isStorno</code> in <code>apiDB.gs</code></li>
+  <li>Se è firma o incasso: aggiungere alle rispettive condizioni e aggiornare §19</li>
+</ol>
+
+<hr>
+
+<h3>🟠 Variante tp_remun "tipo Russo Serena" (YPFA + KSBF + KPFR)</h3>
+
+<p><strong>Problema scoperto (maggio 2026):</strong> Russo Serena e probabilmente altri clienti con modalità SAP simile usano tp_remun diversi dagli standard. Il sistema prima riconosceva solo KASV come storno e non KPFR → gli incassi apparivano doppi (lordi senza detrazione storno).</p>
+
+<p><strong>Fix applicato:</strong> <code>isStorno = (tpRemun === 'KASV' || tpRemun === 'KPFR')</code> in entrambe le funzioni <code>apiGetContrattoDetail</code> e <code>apiGetContrattoCommerciale</code>.</p>
+
+<p><strong>Verifica periodica:</strong> se per un cliente gli incassi sembrano troppo alti o i saldi non tornano, verificare con <code>debugRendiconti</code> se ci sono righe con tp_remun non standard con valori negativi (storni non riconosciuti).</p>
+
+<hr>
+
+<h3>🟡 Data firma errata su ordini NT</h3>
+
+<p><strong>Problema scoperto (maggio 2026):</strong> per i contratti triennali, la <em>prima</em> riga trovata in RENDICONTI poteva essere quella dell'ordine NT (firmato in anni successivi con data SAP diversa) invece di quella dell'ordine G (firma reale). Questo causava la visualizzazione di una data firma sbagliata (es. 2025 invece di 2023).</p>
+
+<p><strong>Fix applicato:</strong> la funzione <code>apiGetContrattoCommerciale</code> traccia il <code>mese_firma</code> per ciascun dvend e poi seleziona la data dell'ordine NUOVO (prefisso G) invece del primo trovato.</p>
+
+<p><strong>Verifica:</strong> se la data firma di un contratto triennale nella vista aggregata sembra troppo recente, controllare che l'ordine G sia presente in RENDICONTI e che <code>firmaMesePerDvend</code> stia selezionando il dvend corretto.</p>
+
+<hr>
+
+<h3>🟡 Composizione aggregata incompleta</h3>
+
+<p><strong>Problema scoperto (maggio 2026):</strong> il totale imponibile composizione mostrava solo la parte G (es. €788) invece del totale G+NT (€1.964). Causa: la mappa <code>materiali[codMat]</code> deduplicava per solo <code>codMat</code>, impedendo la somma dello stesso materiale su dvend diversi (G e NT).</p>
+
+<p><strong>Fix applicato:</strong> introdotta la mappa <code>matDvendSeen[codMat|dvend]</code> che deduplicizza all'interno dello stesso dvend ma accumula tra dvend diversi.</p>
+
+<p><strong>Verifica:</strong> il totale composizione nel contratto-comm-detail deve coincidere con la somma degli imponibili dei singoli ordini SAP visibili nella stessa vista.</p>
+
+<hr>
+
+<h2 id="s22">22. Sistema stati contratti</h2>
+
+<p>La funzione <code>_aggiornaStatiContratti</code> (in <code>aggiornaStati.gs</code>) calcola e scrive il campo <code>stato</code> in CONTRATTI per ogni contratto non DISDETTO. Eseguire dopo ogni import mensile e dopo <code>_generaCS</code>.</p>
+
+<h3>Valori di stato</h3>
+
+<table>
+  <thead><tr><th>Stato</th><th>Badge frontend</th><th>Condizione</th></tr></thead>
+  <tbody>
+    <tr><td><code>SALDATO</code></td><td><span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:.85em">SALDATO</span></td><td>|provvRicevuta − provvAttesa| ≤ €0.50 <em>e</em> provvAttesa &gt; 0</td></tr>
+    <tr><td><code>OVER</code></td><td><span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:4px;font-size:.85em">OVER</span></td><td>Ricevuto più di €0.50 in eccesso rispetto all'atteso</td></tr>
+    <tr><td><code>ANOMALIA</code></td><td><span style="background:#ffedd5;color:#c2410c;padding:2px 8px;border-radius:4px;font-size:.85em">ANOMALIA</span></td><td>Saldo negativo &gt;€0.50 <em>e</em> fermo da &gt;6 mesi <em>e</em> firma &gt;3 mesi fa</td></tr>
+    <tr><td><code>ATTIVO</code></td><td><span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:4px;font-size:.85em">ATTIVO</span></td><td>Tutto il resto — pagamenti in corso o contratto recente</td></tr>
+    <tr><td><code>DISDETTO</code></td><td><span style="background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:4px;font-size:.85em">DISDETTO</span></td><td>Impostato manualmente — mai sovrascritto dallo script</td></tr>
+  </tbody>
+</table>
+
+<h3>Come viene calcolata provvAttesa</h3>
+<ol>
+  <li>Per ogni contratto raccoglie da RENDICONTI le righe YASV/YPFA (firma) o KRSV/KSBF (incasso) e registra l'<code>imponibile</code> per <code>cod_materiale</code>. Firma sovrascrive incasso se arriva dopo; i RINNOVO (NT) senza YASV usano KRSV come fallback.</li>
+  <li>Cerca l'aliquota in PRODOTTI via <code>_lookupProdotto</code> e applica la coppia (aliq_firma + aliq_incasso) in base alla linea del contratto: X200, GESTITE (G174/X136/ecc.), S148.</li>
+  <li><code>provvAttesa = Σ imponibile × (aliqFirma + aliqIncasso) / 100</code></li>
+</ol>
+
+<h3>Come viene calcolata provvRicevuta</h3>
+<p><code>provvRicevuta = Σ (imp_provv_anticipo + imp_provv_maturate)</code> per tutte le righe RENDICONTI del contratto (escluse YRSV). Corrisponde a <code>PROVV_REND</code> nel foglio CS.</p>
+
+<h3>Regola DISDETTO</h3>
+<p>Lo stato DISDETTO va impostato manualmente nella colonna J (stato) di CONTRATTI. <code>_aggiornaStatiContratti</code> non lo sovrascrive mai. Per impostarlo: editare la cella → digitare DISDETTO → salvare. Alla prossima esecuzione il contratto sarà conteggiato tra gli "invariati".</p>
+
+<h3>Diagnosi</h3>
+<blockquote class="warn">Se dopo un import si vedono molti OVER inattesi: verificare che PRODOTTI sia popolato con le aliquote corrette. Se molti contratti sono ANOMALIA pur essendo recenti: verificare che <code>_backfillDataFirmaContratti</code> sia stato eseguito (la data firma errata può far scattare la soglia dei 3 mesi).</blockquote>
+
+</body>
+</html>
