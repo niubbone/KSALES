@@ -27,19 +27,22 @@
   .badge-ok   { background:#dcfce7;color:#15803d;padding:1px 8px;border-radius:4px;font-size:.82em }
   .badge-err  { background:#fee2e2;color:#b91c1c;padding:1px 8px;border-radius:4px;font-size:.82em }
   .badge-warn { background:#ffedd5;color:#c2410c;padding:1px 8px;border-radius:4px;font-size:.82em }
+  .phase { border: 1px solid #e2e8f0; border-radius: 6px; padding: .8rem 1rem; margin: .8rem 0; }
+  .phase-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; color: #1c3557; letter-spacing: .05em; margin-bottom: .4rem; }
 </style>
 </head>
 <body>
 
 <h1>KS — Quickstart operativo</h1>
-<p style="color:#555;font-size:.9em">Guida rapida per i flussi mensili. Per la documentazione completa vedere <a href="MANUALE.html">MANUALE.html</a>.</p>
+<p style="color:#555;font-size:.9em">Guida rapida per i flussi mensili. Per la documentazione completa vedere <a href="manuale.html">Manuale</a>.</p>
 
 <div class="toc">
   <strong>Contenuto</strong>
   <ol>
     <li><a href="#import-mensile">Import mensile completo</a></li>
-    <li><a href="#solo-rendiconti">Solo rendiconti (aggiornamento provvigioni)</a></li>
-    <li><a href="#solo-estrazioni">Solo estrazioni (aggiornamento contratti)</a></li>
+    <li><a href="#timeout">Gestione timeout</a></li>
+    <li><a href="#solo-rendiconti">Solo rendiconti (aggiornamento rapido)</a></li>
+    <li><a href="#solo-estrazioni">Solo estrazioni (aggiornamento sub-agenti)</a></li>
     <li><a href="#riconciliazione">Riconciliazione e segnalazioni</a></li>
     <li><a href="#frontend">Aggiornamento frontend</a></li>
     <li><a href="#anomalie">Checklist anomalie frequenti</a></li>
@@ -50,9 +53,9 @@
 <hr>
 
 <h2 id="import-mensile">1. Import mensile completo</h2>
-<p>Sequenza da eseguire ogni mese dopo aver ricevuto i file da WKI.</p>
+<p>Sequenza standard da eseguire ogni mese dopo aver ricevuto i file da WKI.</p>
 
-<h3>Fase 1 — Carica i file</h3>
+<h3>Passo A — Carica i file in Google Drive</h3>
 <ol>
   <li>Caricare i CSV rendiconti (<code>dml*.csv</code>) nella cartella Drive rendiconti</li>
   <li>Caricare i <code>dips148*.csv</code> nella cartella Drive S148</li>
@@ -60,57 +63,72 @@
   <li>Caricare i file BudAnal (<code>*.xlsx</code> estrazioni) nella cartella Drive estrazioni (se disponibili)</li>
 </ol>
 
-<h3>Fase 2 — Importa in KS-DB (Apps Script → Esegui)</h3>
-<pre><code>1. _importS148Folder        → importa dips148*.csv (linea S148)
-2. _importF502Folder        → importa ripf502*.xlsx (linea F502)
-3. importRendicontiFolder   → importa CSV rendiconti (linee G174/X136/X200)
-4. importEstrazioniFolder   → importa BudAnal (facoltativo, necessario per sub-agenti)
-</code></pre>
-<div class="warn">Importare SEMPRE prima S148/F502/rendiconti e DOPO gli altri passaggi. I nuovi contratti devono essere in RENDICONTI prima di essere aggiunti a CONTRATTI.</div>
+<h3>Passo B — Esegui le 3 fasi (Apps Script → Esegui)</h3>
 
-<h3>Fase 3 — Aggiorna le tabelle master</h3>
-<pre><code>5. _populateClienti              → aggiunge nuovi clienti a CLIENTI
-6. _populateContratti            → aggiunge nuovi contratti a CONTRATTI
-7. _backfillDataFirmaContratti   → popola data_firma da data_doc SAP (non sovrascrive date esistenti)
-8. _backfillNumContratto         → raggruppa ordini G+NT nello stesso contratto commerciale
-9. _backfillSubAgenti            → aggiorna codice_agenzia da BudAnal (solo se sono stati importati)
-10. _sincronizzaAgenzieDaClienti → propaga codice_agenzia da CLIENTI → CONTRATTI
-</code></pre>
+<div class="phase">
+  <div class="phase-label">Fase 1</div>
+  <pre><code>flusso_1_import</code></pre>
+  <small>Importa S148 + F502 + rendiconti DML + estrazioni BudAnal dalla cartella Drive.</small>
+</div>
 
-<h3>Fase 4 — Genera report e stati</h3>
-<pre><code>11. _generaCS                    → rigenera tab ORD e PAG nel foglio CS
-12. _aggiornaStatiContratti      → aggiorna stati contratti (SALDATO/OVER/ANOMALIA/ATTIVO)
-</code></pre>
+<div class="phase">
+  <div class="phase-label">Fase 2</div>
+  <pre><code>flusso_2_popola</code></pre>
+  <small>Aggiunge nuovi clienti e contratti, backfill date firma e num_contratto, aggiorna stati.</small>
+</div>
 
-<h3>Fase 5 — Aggiorna frontend</h3>
-<pre><code>13. clearAllCache                → svuota cache GAS (det_... + comm_...)
-14. Frontend → "Aggiorna tutto"  → svuota localStorage e ricarica da GAS
-</code></pre>
+<div class="phase">
+  <div class="phase-label">Fase 3</div>
+  <pre><code>flusso_3_genera</code></pre>
+  <small>Rigenera tutti i tab ORD e PAG nel foglio CS, svuota la cache GAS.</small>
+</div>
+
+<div class="tip">Ogni fase è <strong>idempotente</strong>: se va in timeout, rilanciarla — ricomincia senza duplicare i dati. Vedi <a href="#timeout">§2</a> per la procedura di ripristino.</div>
+
+<h3>Passo C — Aggiorna il frontend</h3>
+<pre><code>Frontend → "Aggiorna tutto"   → svuota localStorage e ricarica i dati da GAS</code></pre>
 
 <hr>
 
-<h2 id="solo-rendiconti">2. Solo rendiconti (aggiornamento provvigioni)</h2>
-<p>Quando hai solo nuovi rendiconti da importare, senza nuovi contratti.</p>
-<pre><code>1. importRendicontiFolder      → importa i nuovi CSV
-2. _generaCS                   → rigenera CS
-3. _aggiornaStatiContratti     → aggiorna stati
-4. clearAllCache + "Aggiorna tutto"
-</code></pre>
+<h2 id="timeout">2. Gestione timeout</h2>
+<p>Apps Script ha un limite di 6 minuti per esecuzione. Se una fase va in timeout:</p>
+<ol>
+  <li>Notare quale fase si è bloccata (FASE1 / FASE2 / FASE3 nel Logger)</li>
+  <li>Rilanciarla direttamente — ogni operazione è idempotente, non crea duplicati</li>
+  <li>Se FASE1 importa molti file, usare <code>_importaAnnoSlice</code> per importare i rendiconti a blocchi</li>
+</ol>
+<div class="note">Le fasi 2 e 3 sono solitamente veloci (&lt;2 min). Se va in timeout la Fase 1 sull'import rendiconti, è normale — rilanciare o usare lo slice.</div>
 
 <hr>
 
-<h2 id="solo-estrazioni">3. Solo estrazioni (aggiornamento sub-agenti o contratti)</h2>
+<h2 id="solo-rendiconti">3. Solo rendiconti (aggiornamento rapido)</h2>
+<p>Quando hai solo nuovi rendiconti da importare e non ci sono nuovi contratti o estrazioni.</p>
+<p>Puoi eseguire tutte e 3 le fasi normalmente (sono idempotenti), oppure usare le funzioni singole:</p>
+<pre><code>_importS148Folder          → importa nuovi dips148*.csv
+importaRendiconti2026      → importa nuovi dml*.csv
+_populateContratti         → aggiunge contratti eventualmente nuovi
+_backfillNumContratto      → ricalcola aggregazione (idempotente)
+_aggiornaStatiContratti    → aggiorna stati
+_generaCS                  → rigenera CS
+clearAllCache              → svuota cache GAS
+</code></pre>
+<pre><code>Frontend → "Aggiorna tutto"</code></pre>
+
+<hr>
+
+<h2 id="solo-estrazioni">4. Solo estrazioni (aggiornamento sub-agenti)</h2>
 <p>Quando hai aggiornamenti da BudAnal ma non nuovi rendiconti.</p>
-<pre><code>1. importEstrazioniFolder
-2. _backfillSubAgenti
-3. _sincronizzaAgenzieDaClienti
-4. _generaCS
-5. clearAllCache + "Aggiorna tutto"
+<pre><code>importEstrazioniFolder
+_backfillSubAgenti
+_sincronizzaAgenzieDaClienti
+_generaCS
+clearAllCache
 </code></pre>
+<pre><code>Frontend → "Aggiorna tutto"</code></pre>
 
 <hr>
 
-<h2 id="riconciliazione">4. Riconciliazione e segnalazioni</h2>
+<h2 id="riconciliazione">5. Riconciliazione e segnalazioni</h2>
 
 <h3>Importa segnalazioni da CS</h3>
 <pre><code>1. _generaCS                    → assicurati che il CS sia aggiornato
@@ -124,21 +142,21 @@ _generaLetteraSegnalazioniMese        → solo un mese specifico (editare MESE n
 </code></pre>
 
 <h3>Chiudi segnalazione risolta</h3>
-<pre><code>_chiudiSegnalazione   → editare l'ID segnalazione nel codice (es. 'SEG-0012')
-</code></pre>
+<p>Dalla tab SEGNALAZIONI: selezionare <strong>CHIUSA</strong> nella colonna A. La riga si sposta automaticamente in SEGNALAZIONI_CHIUSE.</p>
+<p>In alternativa via script (editare l'ID nel codice):</p>
+<pre><code>_chiudiSegnalazione   → es. 'SEG-0012'</code></pre>
 
 <h3>Report annuale</h3>
-<pre><code>_reconciliazioneAnnuale   → riepilogo per linea: provvigioni / fatture / pagamenti (editare ANNO)
-</code></pre>
+<pre><code>_reconciliazioneAnnuale   → riepilogo per linea: provvigioni / fatture / pagamenti (editare ANNO)</code></pre>
 
 <hr>
 
-<h2 id="frontend">5. Aggiornamento frontend</h2>
+<h2 id="frontend">6. Aggiornamento frontend</h2>
 
 <table>
   <thead><tr><th>Scenario</th><th>Azione</th></tr></thead>
   <tbody>
-    <tr><td>Import mensile completato</td><td>clearAllCache (GAS) → «Aggiorna tutto» nel frontend</td></tr>
+    <tr><td>Import mensile completato</td><td>flusso_3_genera (svuota cache GAS) → «Aggiorna tutto» nel frontend</td></tr>
     <tr><td>Solo dati contratti modificati</td><td>«Aggiorna tutto» nel frontend (svuota anche GAS)</td></tr>
     <tr><td>Frontend mostra dati vecchi</td><td>«Aggiorna tutto» → se ancora vecchi, clearAllCache da GAS poi riaggiorna</td></tr>
     <tr><td>Deploy nuovo codice GAS</td><td>Sempre usare lo stesso deploymentId (non creare nuovi deployment)</td></tr>
@@ -150,7 +168,7 @@ Comando deploy: <code>clasp deploy --deploymentId &lt;ID&gt; --description "vNN-
 
 <hr>
 
-<h2 id="anomalie">6. Checklist anomalie frequenti</h2>
+<h2 id="anomalie">7. Checklist anomalie frequenti</h2>
 
 <table>
   <thead><tr><th>Sintomo</th><th>Causa probabile</th><th>Fix</th></tr></thead>
@@ -162,21 +180,21 @@ Comando deploy: <code>clasp deploy --deploymentId &lt;ID&gt; --description "vNN-
     </tr>
     <tr>
       <td>Nuovi contratti non compaiono</td>
-      <td><code>_populateContratti</code> non eseguito dopo l'import</td>
-      <td>Eseguire <code>_populateContratti</code> poi svuotare cache</td>
+      <td>Fase 2 non eseguita dopo l'import</td>
+      <td>Eseguire <code>flusso_2_popola</code> poi svuotare cache</td>
     </tr>
     <tr>
       <td>Contratto triennale appare come due righe separate</td>
       <td><code>num_contratto</code> non assegnato o SYN_ non creata</td>
-      <td>Eseguire <code>_backfillNumContratto</code></td>
+      <td>Eseguire <code>_backfillNumContratto</code> (o <code>flusso_2_popola</code>)</td>
     </tr>
     <tr>
       <td>Data firma mancante o errata</td>
       <td><code>data_firma</code> non propagata da RENDICONTI</td>
-      <td>Eseguire <code>_backfillDataFirmaContratti</code></td>
+      <td>Eseguire <code>_backfillDataFirmaContratti</code> (incluso in flusso_2_popola)</td>
     </tr>
     <tr>
-      <td>Molti OVER inattesi dopo _aggiornaStatiContratti</td>
+      <td>Molti OVER inattesi dopo aggiornaStati</td>
       <td>PRODOTTI non aggiornato o aliquote errate</td>
       <td>Verificare tab PRODOTTI, poi ri-eseguire <code>_aggiornaStatiContratti</code></td>
     </tr>
@@ -193,28 +211,41 @@ Comando deploy: <code>clasp deploy --deploymentId &lt;ID&gt; --description "vNN-
     <tr>
       <td>Segnalazione già risolta compare ancora</td>
       <td>Segnalazione non chiusa o CS non rigenerato</td>
-      <td><code>_chiudiSegnalazione('SEG-XXXX')</code> oppure <code>_importaProblemiDaCS</code> dopo <code>_generaCS</code></td>
+      <td>Selezionare CHIUSA nella col A (trigger automatico) oppure <code>_importaProblemiDaCS</code> dopo <code>_generaCS</code></td>
     </tr>
     <tr>
       <td>Errore "Tab RENDICONTI mancante"</td>
       <td><code>setupDB</code> non eseguito</td>
       <td>Eseguire <code>setupDB</code> una volta sola</td>
     </tr>
+    <tr>
+      <td>Fase 1 va in timeout</td>
+      <td>Troppi file CSV da importare in un'unica esecuzione</td>
+      <td>Rilanciarla (idempotente) oppure usare <code>_importaAnnoSlice</code> a blocchi</td>
+    </tr>
   </tbody>
 </table>
 
 <hr>
 
-<h2 id="setup">7. Setup iniziale (una tantum)</h2>
+<h2 id="setup">8. Setup iniziale (una tantum)</h2>
 <p>Solo per nuove installazioni o ripristino del DB.</p>
 <ol>
   <li>Eseguire <code>setupDB</code> → crea tutte le tab nel KS-DB</li>
   <li>Eseguire <code>populateProdotti</code> → popola il catalogo prodotti con le aliquote</li>
   <li>Aprire <code>Codice.js</code> → funzione <code>_impostaCS</code> → sostituire <code>'ID_FOGLIO_CS'</code> con l'ID reale del Google Sheet CS → eseguire</li>
+  <li>Verificare gli ID cartelle Drive in <code>flusso.gs</code> (FOLDER_REND, FOLDER_F502, FOLDER_ESTR)</li>
   <li>Eseguire l'import mensile completo (punto 1)</li>
 </ol>
 
 <div class="tip">Il foglio CS è separato dal KS-DB. L'ID si trova nell'URL: <code>docs.google.com/spreadsheets/d/<strong>ID_QUI</strong>/edit</code></div>
+
+<div class="note">
+  <strong>Cartelle Drive configurate in <code>flusso.gs</code>:</strong><br>
+  Rendiconti / S148: <code>1ZUkyA3OnvJWGGb7UMxJk3RQI193K0ObB</code><br>
+  F502: <code>1TX2cZK2lNcXsDCuoi-eI-H_EDf2SM-nz</code><br>
+  Estrazioni BudAnal: <code>17MCZCjnag9YM479LGY_Fe-_HzYibDAvn</code>
+</div>
 
 </body>
 </html>
