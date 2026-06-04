@@ -693,14 +693,24 @@
     </div>
     <!-- sentinel-lotti -->
 
-    <!-- Filtri stato -->
-    <div class="flex gap-1 mb-4">
-      <template x-for="f in ['TUTTE','APERTA','LAVORAZIONE','ATTESA RISPOSTA']" :key="f">
-        <button @click="statoFiltroSegn = f"
-                :class="statoFiltroSegn === f ? 'bg-[#1c3557] text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'"
-                class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
-                x-text="f"></button>
-      </template>
+    <!-- Filtri stato + tipo -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      <div class="flex gap-1">
+        <template x-for="f in ['TUTTE','APERTA','LAVORAZIONE','ATTESA RISPOSTA']" :key="f">
+          <button @click="statoFiltroSegn = f"
+                  :class="statoFiltroSegn === f ? 'bg-[#1c3557] text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'"
+                  class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  x-text="f"></button>
+        </template>
+      </div>
+      <div class="flex gap-1 ml-4 border-l pl-4">
+        <template x-for="t in ['TUTTI','%_ERRATA','PROVV_MANCANTE','INCASSO_MANCANTE','RICHIESTA_INFORMAZIONI','ALTRO']" :key="t">
+          <button @click="tipoFiltroSegn = t"
+                  :class="tipoFiltroSegn === t ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'"
+                  class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  x-text="t"></button>
+        </template>
+      </div>
     </div>
 
     <div x-show="loadingSegn" class="flex items-center justify-center h-32 text-gray-400 gap-3">
@@ -1010,6 +1020,7 @@
         filtroClienti:           '',
         filtroSegnalazioni:      '',
         statoFiltroSegn:         'TUTTE',
+        tipoFiltroSegn:          'TUTTI',
         _gruppiAperti:           {},
         _chart:                  null,
         _chartComm:              null,
@@ -1527,10 +1538,12 @@
         },
 
         get segnazioniFiltrate() {
-          var q    = this.filtroSegnalazioni.toLowerCase();
+          var q     = this.filtroSegnalazioni.toLowerCase();
           var stato = this.statoFiltroSegn;
+          var tipo  = this.tipoFiltroSegn;
           return this.segnalazioni.filter(function(s) {
             if (stato !== 'TUTTE' && s.stato !== stato) return false;
+            if (tipo  !== 'TUTTI' && s.tipo_problema !== tipo) return false;
             if (!q) return true;
             return (s.ragione_sociale || '').toLowerCase().includes(q) ||
                    (s.tipo_problema  || '').toLowerCase().includes(q) ||
