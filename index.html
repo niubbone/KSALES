@@ -18,14 +18,23 @@
   <!-- Navbar -->
   <nav class="bg-[#1c3557] text-white px-6 py-3 flex items-center gap-4 shadow sticky top-0 z-10">
     <span class="font-bold text-base tracking-wide shrink-0">KSales</span>
+    <!-- Back button: visibile solo quando c'è storia di navigazione -->
+    <button x-show="_navHistory.length > 0" @click="goBack()"
+            class="text-sm opacity-70 hover:opacity-100 flex items-center gap-1 border border-white/30 rounded px-2 py-0.5 shrink-0">
+      ← Indietro
+    </button>
     <button @click="navTo('contratti')" :class="vista==='contratti' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Contratti</button>
     <button @click="navTo('clienti')"   :class="vista==='clienti'||vista==='cliente-detail'||vista==='contratto-comm-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Clienti</button>
+    <button @click="navTo('segnalazioni')" :class="vista==='segnalazioni'||vista==='segnalazione-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Segnalazioni</button>
     <!-- Ricerca contestuale inline nella navbar -->
     <input x-show="vista==='contratti'" x-model="filtroContratti" type="search"
            placeholder="Cerca contratto, cliente, ordine…"
            class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
     <input x-show="vista==='clienti'" x-model="filtroClienti" type="search"
            placeholder="Cerca cliente, città, provincia…"
+           class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
+    <input x-show="vista==='segnalazioni'" x-model="filtroSegnalazioni" type="search"
+           placeholder="Cerca cliente, tipo, ordine…"
            class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
     <!-- Pulsanti destra -->
     <div class="ml-auto flex items-center gap-3 shrink-0">
@@ -38,7 +47,7 @@
   </nav>
 
   <!-- Breadcrumb -->
-  <div x-show="vista !== 'contratti' && vista !== 'clienti'" class="bg-white border-b px-6 py-2 text-sm text-gray-500 flex items-center gap-2">
+  <div x-show="vista !== 'contratti' && vista !== 'clienti' && vista !== 'segnalazioni'" class="bg-white border-b px-6 py-2 text-sm text-gray-500 flex items-center gap-2">
     <template x-if="vista === 'cliente-detail'">
       <span>
         <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
@@ -53,6 +62,13 @@
         <button @click="navTo('cliente-detail')" class="hover:text-[#1c3557]" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></button>
         <span class="mx-1">›</span>
         <span class="text-gray-800 font-medium" x-text="contrattoCommDetail && fmtNC(contrattoCommDetail.num_contratto)"></span>
+      </span>
+    </template>
+    <template x-if="vista === 'segnalazione-detail'">
+      <span>
+        <button @click="navTo('segnalazioni')" class="hover:text-[#1c3557]">Segnalazioni</button>
+        <span class="mx-1">›</span>
+        <span class="text-gray-800 font-medium" x-text="segnalazioneSelezionata && segnalazioneSelezionata.id"></span>
       </span>
     </template>
     <template x-if="vista === 'contratto-detail'">
@@ -669,30 +685,211 @@
     </template>
   </section>
 
+  <!-- ── VISTA: SEGNALAZIONI ────────────────────────────────── -->
+  <section x-show="!loading && vista==='segnalazioni'" class="p-6">
+    <div class="flex items-center gap-4 mb-4">
+      <h1 class="text-lg font-semibold">Segnalazioni</h1>
+      <span class="text-xs text-gray-400" x-text="segnazioniFiltrate.length + ' risultati'"></span>
+    </div>
+
+    <!-- Filtri stato -->
+    <div class="flex gap-1 mb-4">
+      <template x-for="f in ['TUTTE','APERTA','LAVORAZIONE','ATTESA RISPOSTA']" :key="f">
+        <button @click="statoFiltroSegn = f"
+                :class="statoFiltroSegn === f ? 'bg-[#1c3557] text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'"
+                class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                x-text="f"></button>
+      </template>
+    </div>
+
+    <div x-show="loadingSegn" class="flex items-center justify-center h-32 text-gray-400 gap-3">
+      <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+      Caricamento segnalazioni…
+    </div>
+
+    <div class="overflow-x-auto rounded shadow-sm" x-show="!loadingSegn">
+      <table class="min-w-full text-sm bg-white">
+        <thead>
+          <tr class="bg-[#1c3557] text-white text-left">
+            <th class="px-3 py-2 font-medium">ID</th>
+            <th class="px-3 py-2 font-medium">Cliente</th>
+            <th class="px-3 py-2 font-medium">Tipo</th>
+            <th class="px-3 py-2 font-medium">Linea</th>
+            <th class="px-3 py-2 font-medium">Prodotto</th>
+            <th class="px-3 py-2 font-medium text-right">Delta</th>
+            <th class="px-3 py-2 font-medium">Aperta il</th>
+            <th class="px-3 py-2 font-medium">Stato</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(s, i) in segnazioniFiltrate" :key="s.id">
+            <tr :class="i%2===0?'bg-white':'bg-gray-50'"
+                class="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
+                @click="openSegnalazione(s)">
+              <td class="px-3 py-2 font-mono text-xs text-blue-700" x-text="s.id"></td>
+              <td class="px-3 py-2 font-medium" x-text="s.ragione_sociale"></td>
+              <td class="px-3 py-2 text-xs" x-text="s.tipo_problema"></td>
+              <td class="px-3 py-2 text-xs" x-text="s.linea"></td>
+              <td class="px-3 py-2 text-xs text-gray-500 max-w-xs truncate" x-text="s.prodotto"></td>
+              <td class="px-3 py-2 text-right text-xs font-medium"
+                  :class="s.delta < 0 ? 'text-yellow-700' : s.delta > 0 ? 'text-red-700' : 'text-gray-500'"
+                  x-text="fmtEuro(s.delta)"></td>
+              <td class="px-3 py-2 text-xs" x-text="s.data_apertura"></td>
+              <td class="px-3 py-2">
+                <span :class="segnStatoClass(s.stato)"
+                      class="px-2 py-0.5 rounded text-xs font-medium" x-text="s.stato"></span>
+              </td>
+            </tr>
+          </template>
+          <tr x-show="!loadingSegn && segnazioniFiltrate.length===0">
+            <td colspan="8" class="px-3 py-6 text-center text-gray-400">Nessuna segnalazione trovata</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── VISTA: SEGNALAZIONE DETAIL ─────────────────────────── -->
+  <section x-show="!loading && vista==='segnalazione-detail' && segnalazioneSelezionata" class="p-6">
+    <template x-if="segnalazioneSelezionata">
+      <div class="space-y-6">
+
+        <!-- Header -->
+        <div class="bg-white rounded shadow-sm p-4 flex flex-wrap gap-6 items-start">
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Segnalazione</p>
+            <p class="text-xl font-bold text-[#1c3557]" x-text="segnalazioneSelezionata.id"></p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Cliente</p>
+            <p class="text-lg font-semibold" x-text="segnalazioneSelezionata.ragione_sociale"></p>
+          </div>
+          <div class="ml-auto flex flex-col items-end gap-2">
+            <span :class="segnStatoClass(segnalazioneSelezionata.stato)"
+                  class="px-3 py-1 rounded text-sm font-semibold"
+                  x-text="segnalazioneSelezionata.stato"></span>
+            <span class="text-xs text-gray-400" x-text="'Aperta il ' + (segnalazioneSelezionata.data_apertura || '—')"></span>
+          </div>
+        </div>
+
+        <!-- Info grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white rounded shadow-sm p-3">
+            <p class="text-xs text-gray-400 mb-1">Tipo problema</p>
+            <p class="text-sm font-medium" x-text="segnalazioneSelezionata.tipo_problema || '—'"></p>
+          </div>
+          <div class="bg-white rounded shadow-sm p-3">
+            <p class="text-xs text-gray-400 mb-1">Linea / Agenzia</p>
+            <p class="text-sm font-medium" x-text="(segnalazioneSelezionata.linea || '—') + ' · ' + (segnalazioneSelezionata.agenzia || '—')"></p>
+          </div>
+          <div class="bg-white rounded shadow-sm p-3">
+            <p class="text-xs text-gray-400 mb-1">Prodotto</p>
+            <p class="text-sm font-medium" x-text="segnalazioneSelezionata.prodotto || '—'"></p>
+          </div>
+          <div class="bg-white rounded shadow-sm p-3">
+            <p class="text-xs text-gray-400 mb-1">Mese rif. / Ordine</p>
+            <p class="text-sm font-medium" x-text="(segnalazioneSelezionata.mese_rif || '—') + ' · ' + (segnalazioneSelezionata.num_ordine || '—')"></p>
+          </div>
+        </div>
+
+        <!-- Situazione economica -->
+        <div class="bg-white rounded shadow-sm p-4">
+          <p class="text-xs text-gray-400 uppercase tracking-wide mb-4">Situazione economica</p>
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Atteso</p>
+              <p class="text-lg font-bold text-gray-700" x-text="fmtEuro(segnalazioneSelezionata.importo_atteso)"></p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Ricevuto</p>
+              <p class="text-lg font-bold text-gray-700" x-text="fmtEuro(segnalazioneSelezionata.importo_ricevuto)"></p>
+            </div>
+            <div class="rounded p-2" :class="segnalazioneSelezionata.delta < -0.5 ? 'bg-yellow-50' : segnalazioneSelezionata.delta > 0.5 ? 'bg-red-50' : 'bg-green-50'">
+              <p class="text-xs text-gray-400 mb-1">Delta</p>
+              <p class="text-lg font-bold"
+                 :class="segnalazioneSelezionata.delta < -0.5 ? 'text-yellow-700' : segnalazioneSelezionata.delta > 0.5 ? 'text-red-700' : 'text-green-700'"
+                 x-text="fmtEuro(segnalazioneSelezionata.delta)"></p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Aliq. attesa</p>
+              <p class="text-lg font-bold text-gray-700" x-text="(segnalazioneSelezionata.aliquota_attesa || 0) + '%'"></p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Aliq. applicata</p>
+              <p class="text-lg font-bold"
+                 :class="Math.abs((segnalazioneSelezionata.aliquota_applicata||0) - (segnalazioneSelezionata.aliquota_attesa||0)) > 0.5 ? 'text-red-700' : 'text-gray-700'"
+                 x-text="(segnalazioneSelezionata.aliquota_applicata || 0) + '%'"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Descrizione automatica -->
+        <div class="bg-amber-50 border border-amber-200 rounded shadow-sm p-4" x-show="segnalazioneSelezionata.descrizione">
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-2">Note automatiche</p>
+          <p class="text-sm text-gray-700" x-text="segnalazioneSelezionata.descrizione"></p>
+        </div>
+
+        <!-- Note manuali -->
+        <div class="bg-white rounded shadow-sm p-4">
+          <p class="text-xs text-gray-400 uppercase tracking-wide mb-2">Note manuali</p>
+          <p class="text-sm text-gray-700 whitespace-pre-wrap" x-show="segnalazioneSelezionata.note" x-text="segnalazioneSelezionata.note"></p>
+          <p class="text-sm text-gray-400 italic" x-show="!segnalazioneSelezionata.note">Nessuna nota — aggiungere direttamente nel foglio SEGNALAZIONI</p>
+        </div>
+
+        <!-- Thread comunicazioni (placeholder) -->
+        <div class="bg-white rounded shadow-sm p-4">
+          <p class="text-xs text-gray-400 uppercase tracking-wide mb-3">Comunicazioni (MSG-1, MSG-2…)</p>
+          <div class="flex items-center gap-3 text-gray-400 text-sm py-4 justify-center border border-dashed border-gray-200 rounded">
+            <span>💬</span>
+            <span>Thread comunicazioni in arrivo — prossimo aggiornamento</span>
+          </div>
+        </div>
+
+        <!-- Link contratto -->
+        <div class="text-right" x-show="segnalazioneSelezionata.num_ordine">
+          <button @click="openContratto(segnalazioneSelezionata.num_ordine, 'segnalazione-detail')"
+                  class="text-sm text-[#1c3557] hover:underline">
+            → Apri contratto <span x-text="segnalazioneSelezionata.num_ordine"></span>
+          </button>
+        </div>
+
+      </div>
+    </template>
+  </section>
+
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script>
     function app() {
       return {
-        vista:               'clienti',
-        subTab:              'composizione',
-        subTabComm:          'composizione',
-        loading:             true,
-        loadingDetail:       false,
-        loadingCommDetail:   false,
-        errore:              '',
-        erroreDetail:        '',
-        erroreCommDetail:    '',
-        contratti:           [],
-        clienti:             [],
-        clienteSelezionato:  null,
-        contrattoDetail:     null,
-        contrattoCommDetail: null,
-        filtroContratti:     '',
-        filtroClienti:       '',
-        _gruppiAperti:       {},
-        _chart:              null,
-        _chartComm:          null,
+        vista:                   'clienti',
+        subTab:                  'composizione',
+        subTabComm:              'composizione',
+        loading:                 true,
+        loadingDetail:           false,
+        loadingCommDetail:       false,
+        loadingSegn:             false,
+        errore:                  '',
+        erroreDetail:            '',
+        erroreCommDetail:        '',
+        contratti:               [],
+        clienti:                 [],
+        segnalazioni:            [],
+        clienteSelezionato:      null,
+        contrattoDetail:         null,
+        contrattoCommDetail:     null,
+        segnalazioneSelezionata: null,
+        filtroContratti:         '',
+        filtroClienti:           '',
+        filtroSegnalazioni:      '',
+        statoFiltroSegn:         'TUTTE',
+        _gruppiAperti:           {},
+        _chart:                  null,
+        _chartComm:              null,
+        _navHistory:             [],
 
         async init() {
           try {
@@ -706,9 +903,40 @@
           }
         },
 
+        _pushHistory() {
+          this._navHistory.push({
+            vista:                   this.vista,
+            clienteSelezionato:      this.clienteSelezionato,
+            contrattoDetail:         this.contrattoDetail,
+            contrattoCommDetail:     this.contrattoCommDetail,
+            segnalazioneSelezionata: this.segnalazioneSelezionata,
+            subTab:                  this.subTab,
+            subTabComm:              this.subTabComm
+          });
+        },
+
+        goBack() {
+          var prev = this._navHistory.pop();
+          if (!prev) return;
+          this._destroyChart();
+          this._destroyChartComm();
+          this.vista                   = prev.vista;
+          this.clienteSelezionato      = prev.clienteSelezionato;
+          this.contrattoDetail         = prev.contrattoDetail;
+          this.contrattoCommDetail     = prev.contrattoCommDetail;
+          this.segnalazioneSelezionata = prev.segnalazioneSelezionata;
+          this.subTab                  = prev.subTab;
+          this.subTabComm              = prev.subTabComm;
+        },
+
         navTo(v) {
+          if (this.vista !== v) this._pushHistory();
           this.vista = v;
-          if (v === 'clienti') this.clienteSelezionato = null;
+          if (v === 'clienti' || v === 'contratti') this.clienteSelezionato = null;
+          if (v === 'segnalazioni') {
+            this.segnalazioneSelezionata = null;
+            if (this.segnalazioni.length === 0) this._loadSegnalazioni();
+          }
           this._destroyChart();
           this._destroyChartComm();
         },
@@ -730,6 +958,7 @@
         },
 
         openCliente(cliente) {
+          this._pushHistory();
           this.clienteSelezionato = cliente;
           this._gruppiAperti = {};
           this.vista = 'cliente-detail';
@@ -746,6 +975,7 @@
         },
 
         async openContratto(numOrdine, provenienza) {
+          this._pushHistory();
           this._destroyChart();
           this.contrattoDetail = null;
           this.erroreDetail    = '';
@@ -763,6 +993,7 @@
         },
 
         async openContrattoCommerciale(numContratto) {
+          this._pushHistory();
           this._destroyChartComm();
           this.contrattoCommDetail = null;
           this.erroreCommDetail    = '';
@@ -1077,6 +1308,46 @@
           var s = String(yyyymm);
           var mesi = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
           return mesi[parseInt(s.substring(4, 6)) - 1] + ' ' + s.substring(0, 4);
+        },
+
+        async _loadSegnalazioni() {
+          this.loadingSegn = true;
+          try {
+            this.segnalazioni = await API.getSegnalazioni();
+          } catch(e) {
+            this.errore = String(e.message || e);
+          } finally {
+            this.loadingSegn = false;
+          }
+        },
+
+        openSegnalazione(s) {
+          this._pushHistory();
+          this.segnalazioneSelezionata = s;
+          this.vista = 'segnalazione-detail';
+        },
+
+        get segnazioniFiltrate() {
+          var q    = this.filtroSegnalazioni.toLowerCase();
+          var stato = this.statoFiltroSegn;
+          return this.segnalazioni.filter(function(s) {
+            if (stato !== 'TUTTE' && s.stato !== stato) return false;
+            if (!q) return true;
+            return (s.ragione_sociale || '').toLowerCase().includes(q) ||
+                   (s.tipo_problema  || '').toLowerCase().includes(q) ||
+                   (s.num_ordine     || '').toLowerCase().includes(q) ||
+                   (s.id             || '').toLowerCase().includes(q);
+          });
+        },
+
+        segnStatoClass(stato) {
+          var m = {
+            'APERTA':           'bg-red-100 text-red-700',
+            'LAVORAZIONE':      'bg-yellow-100 text-yellow-700',
+            'ATTESA RISPOSTA':  'bg-blue-100 text-blue-700',
+            'CHIUSA':           'bg-green-100 text-green-700'
+          };
+          return m[stato] || 'bg-gray-100 text-gray-600';
         },
 
         fmtEuro(n) {
