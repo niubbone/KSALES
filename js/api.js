@@ -58,6 +58,8 @@ var API = {
   chiudiSegnalazione:      function(segId, stato, note) {
     return apiCall('chiudiSegnalazione', { seg_id: segId, stato: stato, note: note });
   },
+  getSegnalazioniChiuse:   function() { return apiCall('getSegnalazioniChiuse'); },
+  riapriSegnalazione:      function(segId) { return apiCall('riapriSegnalazione', { seg_id: segId }); },
   clearCache:              function()             { Object.keys(LS_TTL).forEach(function(k) { localStorage.removeItem('ks_' + k); }); },
   clearServerCache:        function()             { return apiCall('clearCache'); }
 };

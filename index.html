@@ -689,6 +689,14 @@
   <section x-show="!loading && vista==='segnalazioni'" class="p-6">
     <div class="flex items-center gap-4 mb-4">
       <h1 class="text-lg font-semibold">Segnalazioni</h1>
+      <div class="flex rounded overflow-hidden border border-gray-300 text-xs font-medium">
+        <button @click="setVistaSegn(false)"
+                :class="!vistaSegnaChiuse ? 'bg-[#1c3557] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                class="px-3 py-1.5 transition-colors">Aperte</button>
+        <button @click="setVistaSegn(true)"
+                :class="vistaSegnaChiuse ? 'bg-[#1c3557] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                class="px-3 py-1.5 border-l transition-colors">Chiuse</button>
+      </div>
       <span class="text-xs text-gray-400" x-text="segnazioniFiltrate.length + ' risultati'"></span>
     </div>
     <!-- sentinel-lotti -->
@@ -713,7 +721,7 @@
       </div>
     </div>
 
-    <div x-show="loadingSegn" class="flex items-center justify-center h-32 text-gray-400 gap-3">
+    <div x-show="loadingSegn || loadingSegnaChiuse" class="flex items-center justify-center h-32 text-gray-400 gap-3">
       <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -721,7 +729,7 @@
       Caricamento segnalazioni…
     </div>
 
-    <div class="overflow-x-auto rounded shadow-sm" x-show="!loadingSegn">
+    <div class="overflow-x-auto rounded shadow-sm" x-show="!loadingSegn && !loadingSegnaChiuse">
       <table class="min-w-full text-sm bg-white">
         <thead>
           <tr class="bg-[#1c3557] text-white text-left">
@@ -739,7 +747,7 @@
           <template x-for="(s, i) in segnazioniFiltrate" :key="s.id">
             <tr :class="i%2===0?'bg-white':'bg-gray-50'"
                 class="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
-                @click="openSegnalazione(s)">
+                @click="openSegnalazione(s, vistaSegnaChiuse)">
               <td class="px-3 py-2 font-mono text-xs text-blue-700" x-text="s.id"></td>
               <td class="px-3 py-2 font-medium" x-text="s.ragione_sociale"></td>
               <td class="px-3 py-2 text-xs" x-text="s.tipo_problema"></td>
@@ -755,7 +763,7 @@
               </td>
             </tr>
           </template>
-          <tr x-show="!loadingSegn && segnazioniFiltrate.length===0">
+          <tr x-show="!loadingSegn && !loadingSegnaChiuse && segnazioniFiltrate.length===0">
             <td colspan="8" class="px-3 py-6 text-center text-gray-400">Nessuna segnalazione trovata</td>
           </tr>
         </tbody>
@@ -982,8 +990,8 @@
           </div>
         </div>
 
-        <!-- Chiudi segnalazione -->
-        <div class="bg-white rounded shadow-sm p-4">
+        <!-- Chiudi segnalazione (solo per aperte) -->
+        <div class="bg-white rounded shadow-sm p-4" x-show="!segnalazioneIsChiusa">
           <div class="flex items-center justify-between">
             <p class="text-xs text-gray-400 uppercase tracking-wide">Chiudi segnalazione</p>
             <button @click="chiudiVisible = !chiudiVisible; chiudiNota = ''"
@@ -1012,12 +1020,35 @@
           </div>
         </div>
 
-        <!-- Link contratto -->
-        <div class="text-right" x-show="segnalazioneSelezionata.num_ordine">
-          <button @click="openContratto(segnalazioneSelezionata.num_ordine, 'segnalazione-detail')"
-                  class="text-sm text-[#1c3557] hover:underline">
-            → Apri contratto <span x-text="segnalazioneSelezionata.num_ordine"></span>
+        <!-- Riapri segnalazione (solo per chiuse) -->
+        <div class="bg-sky-50 border border-sky-200 rounded shadow-sm p-4 flex items-center justify-between" x-show="segnalazioneIsChiusa">
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Segnalazione chiusa</p>
+            <p class="text-xs text-gray-600" x-show="segnalazioneSelezionata.note" x-text="'Motivazione: ' + segnalazioneSelezionata.note"></p>
+            <p class="text-xs text-gray-400" x-show="segnalazioneSelezionata.data_risoluzione" x-text="'Chiusa il ' + segnalazioneSelezionata.data_risoluzione"></p>
+          </div>
+          <button @click="eseguiRiapriSegnalazione()"
+                  :disabled="riapriLoading"
+                  class="text-xs bg-orange-100 text-orange-800 border border-orange-300 font-semibold px-4 py-1.5 rounded disabled:opacity-40 hover:bg-orange-200 shrink-0 ml-4">
+            <span x-show="!riapriLoading">↺ Riapri</span>
+            <span x-show="riapriLoading">…</span>
           </button>
+        </div>
+
+        <!-- Link ordine / cliente -->
+        <div class="flex flex-wrap gap-4 justify-between items-center">
+          <div x-show="segnalazioneSelezionata.cod_cliente">
+            <button @click="openClienteByCodice(segnalazioneSelezionata.cod_cliente)"
+                    class="text-sm text-[#1c3557] hover:underline">
+              → Scheda cliente <span x-text="segnalazioneSelezionata.ragione_sociale"></span>
+            </button>
+          </div>
+          <div x-show="segnalazioneSelezionata.num_ordine">
+            <button @click="openContratto(segnalazioneSelezionata.num_ordine.split(' / ')[0].trim(), 'segnalazione-detail')"
+                    class="text-sm text-[#1c3557] hover:underline">
+              → Apri ordine <span x-text="segnalazioneSelezionata.num_ordine.split(' / ')[0]"></span>
+            </button>
+          </div>
         </div>
 
       </div>
@@ -1065,6 +1096,11 @@
         chiudiVisible:           false,
         chiudiNota:              '',
         chiudiLoading:           false,
+        vistaSegnaChiuse:        false,
+        segnalazioniChiuse:      [],
+        loadingSegnaChiuse:      false,
+        segnalazioneIsChiusa:    false,
+        riapriLoading:           false,
         lotti:                   [],
         loadingLotti:            false,
         creaLottoVisible:        false,
@@ -1502,13 +1538,16 @@
           }
         },
 
-        openSegnalazione(s) {
+        openSegnalazione(s, fromChiuse) {
           this._pushHistory();
           this.segnalazioneSelezionata = s;
+          this.segnalazioneIsChiusa    = !!fromChiuse;
           this.comunicazioni    = [];
           this.nuovaMsgVisible  = false;
           this.nuovaMsgTesto    = '';
           this.nuovaMsgLotto    = '';
+          this.chiudiVisible    = false;
+          this.chiudiNota       = '';
           this.vista = 'segnalazione-detail';
           this._caricaComunicazioni(s.id);
         },
@@ -1566,6 +1605,48 @@
           }
         },
 
+        async setVistaSegn(chiuse) {
+          this.vistaSegnaChiuse = chiuse;
+          if (chiuse && this.segnalazioniChiuse.length === 0) {
+            this.loadingSegnaChiuse = true;
+            try {
+              this.segnalazioniChiuse = await API.getSegnalazioniChiuse();
+            } catch(e) {
+              this.errore = String(e.message || e);
+            } finally {
+              this.loadingSegnaChiuse = false;
+            }
+          }
+        },
+
+        openClienteByCodice(codCliente) {
+          var c = this.clienti.find(function(x) {
+            return String(x.codice_cliente) === String(codCliente);
+          });
+          if (c) this.openCliente(c);
+        },
+
+        async eseguiRiapriSegnalazione() {
+          if (!this.segnalazioneSelezionata) return;
+          this.riapriLoading = true;
+          try {
+            var res = await API.riapriSegnalazione(this.segnalazioneSelezionata.id);
+            if (res && res.ok) {
+              this.segnalazioniChiuse = this.segnalazioniChiuse.filter(function(s) {
+                return s.id !== res.id;
+              });
+              // Ricarica le aperte per includerla
+              this.segnalazioni = await API.getSegnalazioni();
+              this.vistaSegnaChiuse = false;
+              this.navTo('segnalazioni');
+            }
+          } catch(e) {
+            this.errore = String(e.message || e);
+          } finally {
+            this.riapriLoading = false;
+          }
+        },
+
         async apriCreaLotto() {
           this.creaLottoVisible  = true;
           this.nuovoLottoSegIds  = this.segnazioniFiltrate
@@ -1594,12 +1675,14 @@
         },
 
         get segnazioniFiltrate() {
-          var q     = this.filtroSegnalazioni.toLowerCase();
-          var stato = this.statoFiltroSegn;
-          var tipo  = this.tipoFiltroSegn;
-          return this.segnalazioni.filter(function(s) {
-            if (stato !== 'TUTTE' && s.stato !== stato) return false;
-            if (tipo  !== 'TUTTI' && s.tipo_problema !== tipo) return false;
+          var source   = this.vistaSegnaChiuse ? this.segnalazioniChiuse : this.segnalazioni;
+          var q        = this.filtroSegnalazioni.toLowerCase();
+          var stato    = this.statoFiltroSegn;
+          var tipo     = this.tipoFiltroSegn;
+          var isChiuse = this.vistaSegnaChiuse;
+          return source.filter(function(s) {
+            if (!isChiuse && stato !== 'TUTTE' && s.stato !== stato) return false;
+            if (tipo !== 'TUTTI' && s.tipo_problema !== tipo) return false;
             if (!q) return true;
             return (s.ragione_sociale || '').toLowerCase().includes(q) ||
                    (s.tipo_problema  || '').toLowerCase().includes(q) ||
@@ -1613,7 +1696,8 @@
             'APERTA':           'bg-red-100 text-red-700',
             'LAVORAZIONE':      'bg-yellow-100 text-yellow-700',
             'ATTESA RISPOSTA':  'bg-blue-100 text-blue-700',
-            'CHIUSA':           'bg-green-100 text-green-700'
+            'CHIUSA':           'bg-green-100 text-green-700',
+            'OK':               'bg-sky-100 text-sky-700'
           };
           return m[stato] || 'bg-gray-100 text-gray-600';
         },
