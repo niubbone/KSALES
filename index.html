@@ -982,6 +982,36 @@
           </div>
         </div>
 
+        <!-- Chiudi segnalazione -->
+        <div class="bg-white rounded shadow-sm p-4">
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Chiudi segnalazione</p>
+            <button @click="chiudiVisible = !chiudiVisible; chiudiNota = ''"
+                    class="text-xs border border-gray-300 rounded px-3 py-1 hover:bg-gray-50">
+              <span x-text="chiudiVisible ? 'Annulla' : 'Chiudi / Segna OK'"></span>
+            </button>
+          </div>
+          <div x-show="chiudiVisible" class="mt-3 space-y-3">
+            <textarea x-model="chiudiNota" rows="3"
+                      placeholder="Motivazione obbligatoria (es. 'Aliquota corretta per biennale', 'Pagamento confermato da WKI', 'Prodotto senza provvigioni')"
+                      class="w-full border rounded px-2 py-1.5 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[#1c3557]"></textarea>
+            <div class="flex gap-2 justify-end">
+              <button @click="eseguiChiudiSegnalazione('OK')"
+                      :disabled="!chiudiNota.trim() || chiudiLoading"
+                      class="text-xs bg-[#cfe2f3] text-[#1c3557] border border-[#1c3557]/30 font-semibold px-4 py-1.5 rounded disabled:opacity-40 hover:bg-[#bbd4ec]">
+                <span x-show="!chiudiLoading">✓ Segna OK (non anomalia)</span>
+                <span x-show="chiudiLoading">…</span>
+              </button>
+              <button @click="eseguiChiudiSegnalazione('CHIUSA')"
+                      :disabled="!chiudiNota.trim() || chiudiLoading"
+                      class="text-xs bg-[#d9ead3] text-green-800 border border-green-400/50 font-semibold px-4 py-1.5 rounded disabled:opacity-40 hover:bg-[#c8e0c0]">
+                <span x-show="!chiudiLoading">✓ Chiudi (risolta)</span>
+                <span x-show="chiudiLoading">…</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Link contratto -->
         <div class="text-right" x-show="segnalazioneSelezionata.num_ordine">
           <button @click="openContratto(segnalazioneSelezionata.num_ordine, 'segnalazione-detail')"
@@ -1032,6 +1062,9 @@
         nuovaMsgTesto:           '',
         nuovaMsgLotto:           '',
         invioMsgLoading:         false,
+        chiudiVisible:           false,
+        chiudiNota:              '',
+        chiudiLoading:           false,
         lotti:                   [],
         loadingLotti:            false,
         creaLottoVisible:        false,
@@ -1507,6 +1540,29 @@
             }
           } catch(e) {} finally {
             this.invioMsgLoading = false;
+          }
+        },
+
+        async eseguiChiudiSegnalazione(stato) {
+          if (!this.chiudiNota.trim() || !this.segnalazioneSelezionata) return;
+          this.chiudiLoading = true;
+          try {
+            var res = await API.chiudiSegnalazione(
+              this.segnalazioneSelezionata.id, stato, this.chiudiNota.trim()
+            );
+            if (res && res.ok) {
+              // Rimuovi dalla lista locale e torna all'elenco
+              this.segnalazioni = this.segnalazioni.filter(function(s) {
+                return s.id !== res.id;
+              });
+              this.chiudiVisible = false;
+              this.chiudiNota    = '';
+              this.navTo('segnalazioni');
+            }
+          } catch(e) {
+            this.errore = String(e.message || e);
+          } finally {
+            this.chiudiLoading = false;
           }
         },
 

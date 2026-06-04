@@ -55,6 +55,9 @@ var API = {
   creaLotto:               function(segIds, oggetto, note) {
     return apiCall('creaLotto', { seg_ids: segIds, oggetto: oggetto, note: note || '' });
   },
+  chiudiSegnalazione:      function(segId, stato, note) {
+    return apiCall('chiudiSegnalazione', { seg_id: segId, stato: stato, note: note });
+  },
   clearCache:              function()             { Object.keys(LS_TTL).forEach(function(k) { localStorage.removeItem('ks_' + k); }); },
   clearServerCache:        function()             { return apiCall('clearCache'); }
 };
