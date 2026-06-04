@@ -47,6 +47,14 @@ var API = {
   getContrattoDetail:      function(numOrdine)    { return apiCall('getContrattoDetail',      { num_ordine:     numOrdine });    },
   getContrattoCommerciale: function(numContratto) { return apiCall('getContrattoCommerciale', { num_contratto: numContratto }); },
   getSegnalazioni:         function()             { return apiCall('getSegnalazioni'); },
+  getComunicazioni:        function(segId)        { return apiCall('getComunicazioni', { seg_id: segId }); },
+  getLotti:                function()             { return apiCall('getLotti'); },
+  aggiungiComunicazione:   function(segId, tipo, testo, lottoId) {
+    return apiCall('aggiungiComunicazione', { seg_id: segId, tipo: tipo, testo: testo, lotto_id: lottoId || '' });
+  },
+  creaLotto:               function(segIds, oggetto, note) {
+    return apiCall('creaLotto', { seg_ids: segIds, oggetto: oggetto, note: note || '' });
+  },
   clearCache:              function()             { Object.keys(LS_TTL).forEach(function(k) { localStorage.removeItem('ks_' + k); }); },
   clearServerCache:        function()             { return apiCall('clearCache'); }
 };

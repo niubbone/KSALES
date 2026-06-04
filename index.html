@@ -691,6 +691,7 @@
       <h1 class="text-lg font-semibold">Segnalazioni</h1>
       <span class="text-xs text-gray-400" x-text="segnazioniFiltrate.length + ' risultati'"></span>
     </div>
+    <!-- sentinel-lotti -->
 
     <!-- Filtri stato -->
     <div class="flex gap-1 mb-4">
@@ -749,6 +750,74 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Sezione Lotti WKI -->
+    <div class="mt-10">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-semibold">Lotti WKI</h2>
+        <button @click="apriCreaLotto()"
+                class="text-xs bg-[#1c3557] text-white px-3 py-1.5 rounded hover:bg-[#2a4f75]">
+          + Crea lotto
+        </button>
+      </div>
+
+      <!-- Form crea lotto -->
+      <div x-show="creaLottoVisible" class="mb-4 p-4 bg-gray-50 rounded border border-gray-200 space-y-3">
+        <p class="text-sm font-medium text-gray-700">Nuovo lotto WKI</p>
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">Segnalazioni incluse (SEG-ID separati da virgola)</label>
+          <input x-model="nuovoLottoSegIds" type="text" placeholder="SEG-0001, SEG-0003, SEG-0012"
+                 class="w-full border rounded px-2 py-1.5 text-sm font-mono">
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">Oggetto</label>
+          <input x-model="nuovoLottoOggetto" type="text" placeholder="Es. Contestazione aliquote Q1 2026"
+                 class="w-full border rounded px-2 py-1.5 text-sm">
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button @click="creaLottoVisible=false"
+                  class="text-xs text-gray-500 hover:text-gray-700 px-3 py-1">Annulla</button>
+          <button @click="salvaLotto()" :disabled="!nuovoLottoSegIds.trim() || creaLottoLoading"
+                  class="text-xs bg-[#1c3557] text-white px-3 py-1 rounded disabled:opacity-50">
+            <span x-show="!creaLottoLoading">Crea lotto</span>
+            <span x-show="creaLottoLoading">…</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista lotti -->
+      <div x-show="loadingLotti" class="text-center text-gray-400 text-sm py-3">Caricamento lotti…</div>
+      <div class="overflow-x-auto rounded shadow-sm" x-show="!loadingLotti">
+        <table class="min-w-full text-sm bg-white">
+          <thead>
+            <tr class="bg-[#1c3557] text-white text-left">
+              <th class="px-3 py-2 font-medium">Lotto</th>
+              <th class="px-3 py-2 font-medium">Data invio</th>
+              <th class="px-3 py-2 font-medium">Segnalazioni</th>
+              <th class="px-3 py-2 font-medium">Oggetto</th>
+              <th class="px-3 py-2 font-medium">Stato risposta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(l, i) in lotti" :key="l.lotto_id">
+              <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100">
+                <td class="px-3 py-2 font-mono text-xs font-medium text-[#1c3557]" x-text="l.lotto_id"></td>
+                <td class="px-3 py-2 text-xs" x-text="l.data_invio"></td>
+                <td class="px-3 py-2 text-xs text-gray-500 max-w-xs truncate" x-text="l.segnalazioni"></td>
+                <td class="px-3 py-2 text-sm" x-text="l.oggetto"></td>
+                <td class="px-3 py-2">
+                  <span :class="l.stato_risposta==='RISPOSTA RICEVUTA'?'bg-green-100 text-green-700':l.stato_risposta==='CHIUSO'?'bg-gray-200 text-gray-600':'bg-yellow-100 text-yellow-700'"
+                        class="px-2 py-0.5 rounded text-xs font-medium" x-text="l.stato_risposta"></span>
+                </td>
+              </tr>
+            </template>
+            <tr x-show="lotti.length===0">
+              <td colspan="5" class="px-3 py-6 text-center text-gray-400">Nessun lotto creato</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -839,12 +908,67 @@
           <p class="text-sm text-gray-400 italic" x-show="!segnalazioneSelezionata.note">Nessuna nota — aggiungere direttamente nel foglio SEGNALAZIONI</p>
         </div>
 
-        <!-- Thread comunicazioni (placeholder) -->
+        <!-- Thread comunicazioni -->
         <div class="bg-white rounded shadow-sm p-4">
-          <p class="text-xs text-gray-400 uppercase tracking-wide mb-3">Comunicazioni (MSG-1, MSG-2…)</p>
-          <div class="flex items-center gap-3 text-gray-400 text-sm py-4 justify-center border border-dashed border-gray-200 rounded">
-            <span>💬</span>
-            <span>Thread comunicazioni in arrivo — prossimo aggiornamento</span>
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-xs text-gray-400 uppercase tracking-wide">Comunicazioni</p>
+            <button @click="nuovaMsgVisible = !nuovaMsgVisible"
+                    class="text-xs bg-[#1c3557] text-white px-3 py-1 rounded hover:bg-[#2a4f75]">
+              + Aggiungi
+            </button>
+          </div>
+
+          <!-- Form nuovo messaggio -->
+          <div x-show="nuovaMsgVisible" class="mb-4 p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
+            <div class="flex gap-2">
+              <select x-model="nuovaMsgTipo" class="border rounded px-2 py-1 text-sm flex-shrink-0">
+                <option>NOTA</option>
+                <option>EMAIL</option>
+                <option>LETTERA</option>
+                <option>TELEFONATA</option>
+                <option>RISPOSTA WKI</option>
+              </select>
+              <input x-model="nuovaMsgLotto" type="text" placeholder="Lotto (es. LOTTO-2026-001)"
+                     class="border rounded px-2 py-1 text-sm w-48">
+            </div>
+            <textarea x-model="nuovaMsgTesto" rows="3" placeholder="Testo comunicazione…"
+                      class="w-full border rounded px-2 py-1.5 text-sm resize-none"></textarea>
+            <div class="flex gap-2 justify-end">
+              <button @click="nuovaMsgVisible=false; nuovaMsgTesto=''"
+                      class="text-xs text-gray-500 hover:text-gray-700 px-3 py-1">Annulla</button>
+              <button @click="inviaMessaggio()"
+                      :disabled="!nuovaMsgTesto.trim() || invioMsgLoading"
+                      class="text-xs bg-[#1c3557] text-white px-3 py-1 rounded disabled:opacity-50">
+                <span x-show="!invioMsgLoading">Salva</span>
+                <span x-show="invioMsgLoading">…</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Lista messaggi -->
+          <div x-show="loadingComm" class="text-center text-gray-400 text-sm py-3">Caricamento…</div>
+          <div x-show="!loadingComm && comunicazioni.length === 0"
+               class="text-center text-gray-400 text-sm py-4 border border-dashed border-gray-200 rounded">
+            Nessuna comunicazione registrata
+          </div>
+          <div class="space-y-2">
+            <template x-for="m in comunicazioni" :key="m.msg_num">
+              <div class="flex gap-3 p-3 rounded border"
+                   :class="m.tipo === 'RISPOSTA WKI' ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'">
+                <div class="flex-shrink-0 text-center">
+                  <span class="block font-bold text-xs text-[#1c3557]" x-text="'MSG-' + m.msg_num"></span>
+                  <span class="block text-xs text-gray-400 mt-0.5" x-text="m.data"></span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span :class="m.tipo==='RISPOSTA WKI'?'bg-blue-100 text-blue-700':'bg-gray-200 text-gray-600'"
+                          class="text-xs font-medium px-2 py-0.5 rounded" x-text="m.tipo"></span>
+                    <span x-show="m.lotto_id" class="text-xs text-gray-400 font-mono" x-text="m.lotto_id"></span>
+                  </div>
+                  <p class="text-sm text-gray-700 whitespace-pre-wrap" x-text="m.testo"></p>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -890,6 +1014,19 @@
         _chart:                  null,
         _chartComm:              null,
         _navHistory:             [],
+        comunicazioni:           [],
+        loadingComm:             false,
+        nuovaMsgVisible:         false,
+        nuovaMsgTipo:            'NOTA',
+        nuovaMsgTesto:           '',
+        nuovaMsgLotto:           '',
+        invioMsgLoading:         false,
+        lotti:                   [],
+        loadingLotti:            false,
+        creaLottoVisible:        false,
+        nuovoLottoSegIds:        '',
+        nuovoLottoOggetto:       '',
+        creaLottoLoading:        false,
 
         async init() {
           try {
@@ -1324,7 +1461,69 @@
         openSegnalazione(s) {
           this._pushHistory();
           this.segnalazioneSelezionata = s;
+          this.comunicazioni    = [];
+          this.nuovaMsgVisible  = false;
+          this.nuovaMsgTesto    = '';
+          this.nuovaMsgLotto    = '';
           this.vista = 'segnalazione-detail';
+          this._caricaComunicazioni(s.id);
+        },
+
+        async _caricaComunicazioni(segId) {
+          this.loadingComm = true;
+          try {
+            this.comunicazioni = await API.getComunicazioni(segId);
+          } catch(e) {} finally {
+            this.loadingComm = false;
+          }
+        },
+
+        async inviaMessaggio() {
+          if (!this.nuovaMsgTesto.trim() || !this.segnalazioneSelezionata) return;
+          this.invioMsgLoading = true;
+          try {
+            var msg = await API.aggiungiComunicazione(
+              this.segnalazioneSelezionata.id,
+              this.nuovaMsgTipo,
+              this.nuovaMsgTesto.trim(),
+              this.nuovaMsgLotto.trim()
+            );
+            if (msg && !msg.error) {
+              this.comunicazioni.push(msg);
+              this.nuovaMsgTesto   = '';
+              this.nuovaMsgLotto   = '';
+              this.nuovaMsgVisible = false;
+            }
+          } catch(e) {} finally {
+            this.invioMsgLoading = false;
+          }
+        },
+
+        async apriCreaLotto() {
+          this.creaLottoVisible  = true;
+          this.nuovoLottoSegIds  = this.segnazioniFiltrate
+            .filter(function(s) { return s.stato === 'APERTA' || s.stato === 'LAVORAZIONE'; })
+            .map(function(s) { return s.id; }).join(', ');
+          this.nuovoLottoOggetto = '';
+          if (this.lotti.length === 0) await this._caricaLotti();
+        },
+
+        async _caricaLotti() {
+          this.loadingLotti = true;
+          try { this.lotti = await API.getLotti(); }
+          catch(e) {} finally { this.loadingLotti = false; }
+        },
+
+        async salvaLotto() {
+          if (!this.nuovoLottoSegIds.trim()) return;
+          this.creaLottoLoading = true;
+          try {
+            var l = await API.creaLotto(this.nuovoLottoSegIds.trim(), this.nuovoLottoOggetto.trim());
+            if (l && !l.error) {
+              this.lotti.unshift(l);
+              this.creaLottoVisible = false;
+            }
+          } catch(e) {} finally { this.creaLottoLoading = false; }
         },
 
         get segnazioniFiltrate() {
