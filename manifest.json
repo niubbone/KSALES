@@ -1,0 +1,17 @@
+{
+  "name": "KSales",
+  "short_name": "KSales",
+  "description": "Riconciliazione provvigioni WKI",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1c3557",
+  "theme_color": "#1c3557",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
