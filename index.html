@@ -51,48 +51,36 @@
 
   <!-- Breadcrumb -->
   <div x-show="vista !== 'contratti' && vista !== 'clienti' && vista !== 'segnalazioni'" class="bg-white border-b px-6 py-2 text-sm text-gray-500 flex items-center gap-2">
-    <template x-if="vista === 'cliente-detail'">
-      <span>
-        <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
-        <span class="mx-1">›</span>
-        <span class="text-gray-800 font-medium" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></span>
-      </span>
-    </template>
-    <template x-if="vista === 'contratto-comm-detail'">
-      <span class="flex items-center gap-1">
+    <span x-show="vista === 'cliente-detail'">
+      <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
+      <span class="mx-1">›</span>
+      <span class="text-gray-800 font-medium" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></span>
+    </span>
+    <span x-show="vista === 'contratto-comm-detail'" class="flex items-center gap-1">
+      <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
+      <span class="mx-1">›</span>
+      <button @click="navTo('cliente-detail')" class="hover:text-[#1c3557]" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></button>
+      <span class="mx-1">›</span>
+      <span class="text-gray-800 font-medium" x-text="contrattoCommDetail && fmtNC(contrattoCommDetail.num_contratto)"></span>
+    </span>
+    <span x-show="vista === 'segnalazione-detail'">
+      <button @click="navTo('segnalazioni')" class="hover:text-[#1c3557]">Segnalazioni</button>
+      <span class="mx-1">›</span>
+      <span class="text-gray-800 font-medium" x-text="segnalazioneSelezionata && segnalazioneSelezionata.id"></span>
+    </span>
+    <span x-show="vista === 'contratto-detail'" class="flex items-center gap-1">
+      <span x-show="clienteSelezionato" class="flex items-center gap-1">
         <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
         <span class="mx-1">›</span>
         <button @click="navTo('cliente-detail')" class="hover:text-[#1c3557]" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></button>
         <span class="mx-1">›</span>
-        <span class="text-gray-800 font-medium" x-text="contrattoCommDetail && fmtNC(contrattoCommDetail.num_contratto)"></span>
       </span>
-    </template>
-    <template x-if="vista === 'segnalazione-detail'">
-      <span>
-        <button @click="navTo('segnalazioni')" class="hover:text-[#1c3557]">Segnalazioni</button>
+      <span x-show="!clienteSelezionato" class="flex items-center gap-1">
+        <button @click="navTo('contratti')" class="hover:text-[#1c3557]">Contratti</button>
         <span class="mx-1">›</span>
-        <span class="text-gray-800 font-medium" x-text="segnalazioneSelezionata && segnalazioneSelezionata.id"></span>
       </span>
-    </template>
-    <template x-if="vista === 'contratto-detail'">
-      <span class="flex items-center gap-1">
-        <template x-if="clienteSelezionato">
-          <span class="flex items-center gap-1">
-            <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
-            <span class="mx-1">›</span>
-            <button @click="navTo('cliente-detail')" class="hover:text-[#1c3557]" x-text="clienteSelezionato.ragione_sociale"></button>
-            <span class="mx-1">›</span>
-          </span>
-        </template>
-        <template x-if="!clienteSelezionato">
-          <span class="flex items-center gap-1">
-            <button @click="navTo('contratti')" class="hover:text-[#1c3557]">Contratti</button>
-            <span class="mx-1">›</span>
-          </span>
-        </template>
-        <span class="text-gray-800 font-medium" x-text="contrattoDetail && contrattoDetail.contratto && contrattoDetail.contratto.num_contratto"></span>
-      </span>
-    </template>
+      <span class="text-gray-800 font-medium" x-text="contrattoDetail && contrattoDetail.contratto && contrattoDetail.contratto.num_contratto"></span>
+    </span>
   </div>
 
   <!-- Loader globale -->
