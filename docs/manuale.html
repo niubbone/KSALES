@@ -141,8 +141,8 @@
   </tbody>
 </table>
 
-<blockquote>Le aliquote gestite su rinnovo (10+5=15%) si applicano solo a rinnovi autonomi (NC standalone, un solo contratto commerciale). I rinnovi gestite autonomi provengono da vecchi contratti e non sono contestabili.</blockquote>
-<blockquote><strong>Regola triennali/biennali (contratti multi-anno con più dvend SAP sullo stesso NC):</strong> tutte le annualità (G/GF/NT) dentro lo stesso <code>num_contratto</code> usano il tipo del contratto principale (<code>NUOVO</code>). La provvigione si calcola sul totale come contratto nuovo — es. triennale 2700€ GESTITE = 20% su 2700 = 540€. Questo vale sia per X200 sia per Gestite.</blockquote>
+<blockquote><strong>Regola GESTITE (G020, G174, X136, F502):</strong> dal 01/01/2024 non esistono rinnovi sulle gestite — tutti i contratti sono NUOVO indipendentemente da cosa risulta in CONTRATTI.tipo. La distinzione NUOVO/RINNOVO in ALIQUOTE_STORICHE per le gestite si applica solo a eventuali contratti pre-2024 marcati manualmente come RINNOVO dall'utente. Il sistema forza automaticamente <code>tipo=NUOVO</code> per qualsiasi contratto gestite con <code>data_firma ≥ 2024</code>.</blockquote>
+<blockquote><strong>Regola triennali/biennali (multi-anno con più dvend sullo stesso NC):</strong> tutte le annualità (G/GF/NT) dentro lo stesso <code>num_contratto</code> usano il tipo del contratto principale. Per le gestite 2024+ questo è sempre NUOVO. La provvigione si calcola sul totale — es. triennale 2700€ GESTITE = 20% su 2700 = 540€.</blockquote>
 <blockquote><strong>S148</strong>: <code>aliq_s148</code> rappresenta il totale annuo (firma + incasso). La firma triennale viene pagata anno per anno. Solo contratti NUOVI — nessun rinnovo in S148.</blockquote>
 
 <hr>
