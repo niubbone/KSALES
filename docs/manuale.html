@@ -36,7 +36,7 @@
 <h1>KS — Sistema Riconciliazione Provvigioni<br><small style="font-size:.55em;font-weight:400;color:#444">Manuale Operativo</small></h1>
 
 <p class="version">
-  <strong>Versione:</strong> 1.1 (giugno 2026 — aggiornato 02/06/2026 · GAS @58)<br>
+  <strong>Versione:</strong> 1.2 (giugno 2026 — aggiornato 11/06/2026 · GAS @90)<br>
   <strong>Progetto:</strong> Google Apps Script collegato a <em>KS-DB</em> e <em>KS-CS</em> + web frontend (GitHub Pages)
 </p>
 
@@ -141,7 +141,8 @@
   </tbody>
 </table>
 
-<blockquote>Le aliquote gestite su rinnovo (10+5=15%) si applicano ai rinnovi sulle linee G174/X136/F502. I rinnovi gestite provengono da vecchi contratti e non sono contestabili.</blockquote>
+<blockquote>Le aliquote gestite su rinnovo (10+5=15%) si applicano solo a rinnovi autonomi (NC standalone, un solo contratto commerciale). I rinnovi gestite autonomi provengono da vecchi contratti e non sono contestabili.</blockquote>
+<blockquote><strong>Regola triennali/biennali (contratti multi-anno con più dvend SAP sullo stesso NC):</strong> tutte le annualità (G/GF/NT) dentro lo stesso <code>num_contratto</code> usano il tipo del contratto principale (<code>NUOVO</code>). La provvigione si calcola sul totale come contratto nuovo — es. triennale 2700€ GESTITE = 20% su 2700 = 540€. Questo vale sia per X200 sia per Gestite.</blockquote>
 <blockquote><strong>S148</strong>: <code>aliq_s148</code> rappresenta il totale annuo (firma + incasso). La firma triennale viene pagata anno per anno. Solo contratti NUOVI — nessun rinnovo in S148.</blockquote>
 
 <hr>
@@ -564,6 +565,15 @@ S148                    →      43
   </tbody>
 </table>
 
+<h3>Dvend ANOMALIA — esclusione da calcoli e vista</h3>
+<p>Dvend con <code>stato = ANOMALIA</code> in CONTRATTI sono duplicati SAP (es. due ordini NT per la stessa annualità CAN.BIENN). Vengono esclusi completamente da <code>apiGetContrattoCommerciale</code>:</p>
+<ul>
+  <li>Non compaiono nella lista <strong>ORDINI SAP</strong> del frontend</li>
+  <li>Non contribuiscono a imponibili, composizione, firmaImportoPerCat</li>
+  <li>Non contribuiscono a <code>provvRicevuta</code> né <code>provvAttesa</code></li>
+</ul>
+<p>La loro presenza in CONTRATTI rimane utile per il matching tramite <code>n_doc</code>, ma non producono dati visibili. Se stai vedendo totali imponibili gonfiati (es. 4900 invece di 3100 per un triennale), verificare se ci sono dvend ANOMALIA con <code>netYASV &gt; 0</code> che andrebbero aggiornati a stato ANOMALIA in CONTRATTI.</p>
+
 <h3>Diagnostica</h3>
 <pre><code>_diagnosticRendiconti   → sheet DIAGNOSTIC + Logger compatto (non modifica dati)
 </code></pre>
@@ -587,6 +597,20 @@ S148                    →      43
   </tbody>
 </table>
 <p>Entrambi svuotati da «Aggiorna tutto» nel frontend, oppure <code>clearAllCache()</code> da GAS (incluso in <code>flusso_3_genera</code>).</p>
+<div class="note"><strong>Dopo ogni deploy GAS</strong>: eseguire «Aggiorna tutto» nel frontend per svuotare anche la cache CacheService — il deploy non la invalida automaticamente.</div>
+
+<h3>Tabella Categorie (Contratto Commerciale)</h3>
+<p>Nella vista contratto commerciale, la tabella provvigioni per categoria mostra:</p>
+<table>
+  <thead><tr><th>Colonna</th><th>Descrizione</th></tr></thead>
+  <tbody>
+    <tr><td>Categoria</td><td>ABB / FORM / IMPORT / HYPER</td></tr>
+    <tr><td>Aliq.</td><td>Aliquota attesa % (provv_attesa / imponibile × 100) — permette di verificare subito se SAP ha applicato la % sbagliata</td></tr>
+    <tr><td>Provv. Attesa</td><td>Importo atteso = imponibile × aliquota NC-tipo (NUOVO per tutti i dvend dello stesso NC)</td></tr>
+    <tr><td>Provv. Ricevuta</td><td>Somma provvigioni YASV+KRSV effettivamente ricevute da SAP</td></tr>
+    <tr><td>Saldo</td><td>Ricevuta − Attesa. Negativo = WKI deve ancora pagare. Verde = in pari.</td></tr>
+  </tbody>
+</table>
 
 <hr>
 

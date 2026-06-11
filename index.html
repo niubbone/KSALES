@@ -290,6 +290,12 @@
           </div>
           <div class="text-sm text-gray-600 grid grid-cols-2 gap-x-8 gap-y-1 mt-1" x-show="contrattoDetail.contratto">
             <span class="text-gray-400">Cliente</span>     <span class="font-medium" x-text="contrattoDetail.contratto && contrattoDetail.contratto.ragione_sociale"></span>
+            <template x-if="contrattoDetail.n_doc">
+              <span class="text-gray-400">N. doc. SAP</span>
+            </template>
+            <template x-if="contrattoDetail.n_doc">
+              <span class="font-mono" x-text="contrattoDetail.n_doc"></span>
+            </template>
             <span class="text-gray-400">Data firma</span>  <span x-text="fmtData(contrattoDetail.contratto && contrattoDetail.contratto.data_firma)"></span>
             <span class="text-gray-400">Agenzia</span>     <span x-text="contrattoDetail.contratto && contrattoDetail.contratto.codice_agenzia"></span>
             <span class="text-gray-400">Tipo</span>        <span x-text="contrattoDetail.contratto && contrattoDetail.contratto.tipo"></span>
@@ -499,6 +505,12 @@
           </div>
           <div class="text-sm text-gray-600 grid grid-cols-2 gap-x-8 gap-y-1 mt-1">
             <span class="text-gray-400">Cliente</span>   <span class="font-medium" x-text="clienteSelezionato && clienteSelezionato.ragione_sociale"></span>
+            <template x-if="contrattoCommDetail.n_doc">
+              <span class="text-gray-400">N. doc. SAP</span>
+            </template>
+            <template x-if="contrattoCommDetail.n_doc">
+              <span class="font-mono" x-text="contrattoCommDetail.n_doc"></span>
+            </template>
             <span class="text-gray-400">Data firma</span><span x-text="contrattoCommDetail.ordini && fmtData(contrattoCommDetail.ordini[0] && contrattoCommDetail.ordini[0].data_firma)"></span>
             <span class="text-gray-400">Agenzia</span>   <span x-text="contrattoCommDetail.ordini && contrattoCommDetail.ordini[0] && contrattoCommDetail.ordini[0].codice_agenzia"></span>
           </div>
@@ -579,6 +591,7 @@
               <thead>
                 <tr class="bg-[#1c3557] text-white text-left">
                   <th class="px-3 py-2 font-medium">Categoria</th>
+                  <th class="px-3 py-2 font-medium text-right">Aliq.</th>
                   <th class="px-3 py-2 font-medium text-right">Provv. Attesa</th>
                   <th class="px-3 py-2 font-medium text-right">Provv. Ricevuta</th>
                   <th class="px-3 py-2 font-medium text-right">Saldo</th>
@@ -588,6 +601,7 @@
                 <template x-for="(cat, ci) in (contrattoCommDetail.categorie || [])" :key="ci">
                   <tr class="border-b border-gray-100" :class="ci%2===0?'bg-white':'bg-gray-50'">
                     <td class="px-3 py-2 font-medium" :class="colorCategoria(cat.categoria)" x-text="labelCategoria(cat.categoria)"></td>
+                    <td class="px-3 py-2 text-right text-xs text-gray-500" x-text="cat.aliquota_attesa ? cat.aliquota_attesa+'%' : ''"></td>
                     <td class="px-3 py-2 text-right text-xs" x-text="fmtEuro(cat.provv_attesa)"></td>
                     <td class="px-3 py-2 text-right text-xs" x-text="fmtEuro(cat.provv_ricevuta)"></td>
                     <td class="px-3 py-2 text-right text-xs font-semibold"
@@ -599,6 +613,7 @@
               <tfoot>
                 <tr class="border-t-2 border-gray-400 bg-gray-100 font-semibold">
                   <td class="px-3 py-2 text-sm">Totale</td>
+                  <td class="px-3 py-2 text-right"></td>
                   <td class="px-3 py-2 text-right" x-text="fmtEuro(contrattoCommDetail.provv_attesa)"></td>
                   <td class="px-3 py-2 text-right" x-text="fmtEuro(contrattoCommDetail.provv_ricevuta)"></td>
                   <td class="px-3 py-2 text-right font-bold"
