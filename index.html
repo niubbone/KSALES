@@ -383,6 +383,7 @@
             <div class="bg-white rounded shadow-sm p-4 text-center">
               <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Provv. Attesa</p>
               <p class="text-xl font-bold text-gray-700" x-text="fmtEuro(contrattoDetail.provv_attesa)"></p>
+              <p class="text-xs text-gray-500 mt-1" x-show="contrattoDetail.aliquota_attesa" x-text="contrattoDetail.aliquota_attesa + '%'"></p>
             </div>
             <div class="bg-white rounded shadow-sm p-4 text-center">
               <p class="text-xs text-gray-400 uppercase tracking-wide mb-1">Provv. Ricevuta</p>
