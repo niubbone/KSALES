@@ -63,25 +63,34 @@
   <li>Caricare i file BudAnal (<code>*.xlsx</code> estrazioni) nella cartella Drive estrazioni (se disponibili)</li>
 </ol>
 
-<h3>Passo B — Esegui le 3 fasi (Apps Script → Esegui)</h3>
+<h3>Passo B — Esegui (Apps Script → Esegui)</h3>
 
 <div class="phase">
-  <div class="phase-label">Fase 1</div>
-  <pre><code>flusso_1_import</code></pre>
-  <small>Importa S148 + F502 + rendiconti DML + estrazioni BudAnal dalla cartella Drive.</small>
+  <div class="phase-label">Opzione rapida — mese normale</div>
+  <pre><code>flusso_completo</code></pre>
+  <small>Esegue le fasi 1+2+3 in sequenza. Se va in timeout su FASE1, usare le fasi singole (vedi sotto).</small>
 </div>
 
-<div class="phase">
-  <div class="phase-label">Fase 2</div>
-  <pre><code>flusso_2_popola</code></pre>
-  <small>Aggiunge nuovi clienti e contratti, backfill date firma e num_contratto, aggiorna stati.</small>
-</div>
-
-<div class="phase">
-  <div class="phase-label">Fase 3</div>
-  <pre><code>flusso_3_genera</code></pre>
-  <small>Rigenera tutti i tab ORD e PAG nel foglio CS, svuota la cache GAS.</small>
-</div>
+<details style="margin:.6rem 0">
+  <summary style="cursor:pointer;color:#1c3557;font-size:.9em">▶ Fasi singole (fallback se timeout)</summary>
+  <div style="margin-top:.6rem">
+    <div class="phase">
+      <div class="phase-label">Fase 1</div>
+      <pre><code>flusso_1_import</code></pre>
+      <small>Importa S148 + F502 + rendiconti DML + estrazioni BudAnal dalla cartella Drive.</small>
+    </div>
+    <div class="phase">
+      <div class="phase-label">Fase 2</div>
+      <pre><code>flusso_2_popola</code></pre>
+      <small>Aggiunge nuovi clienti e contratti, backfill date firma e num_contratto, aggiorna stati.</small>
+    </div>
+    <div class="phase">
+      <div class="phase-label">Fase 3</div>
+      <pre><code>flusso_3_genera</code></pre>
+      <small>Rigenera tutti i tab ORD e PAG nel foglio CS, svuota la cache GAS.</small>
+    </div>
+  </div>
+</details>
 
 <div class="tip">Ogni fase è <strong>idempotente</strong>: se va in timeout, rilanciarla — ricomincia senza duplicare i dati. Vedi <a href="#timeout">§2</a> per la procedura di ripristino.</div>
 
