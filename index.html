@@ -1260,9 +1260,18 @@
             if (!gruppi[key]) gruppi[key] = { key: key, num_contratto: nc, ordini: [], tipo: c.tipo, data_firma: c.data_firma, durata_tot: 0, imponibile: 0, stato: c.stato };
             var g = gruppi[key];
             g.ordini.push(c);
-            g.imponibile  = Math.round((g.imponibile + (c.imponibile || 0)) * 100) / 100;
-            g.durata_tot += (c.durata_mesi || 0);
+            g.imponibile = Math.round((g.imponibile + (c.imponibile || 0)) * 100) / 100;
             if (String(c.tipo||'').trim() === 'NUOVO') { g.tipo = 'NUOVO'; g.data_firma = c.data_firma; }
+          });
+          // Durata: per triennali/biennali gli NT sono sostituiti dai GF → non contano.
+          // Se il gruppo ha almeno un GF, si escludono i dvend NT dal computo della durata.
+          Object.keys(gruppi).forEach(function(k) {
+            var g = gruppi[k];
+            var hasGF = g.ordini.some(function(o) { return /^GF/i.test(String(o.num_ordine_wki || '')); });
+            g.durata_tot = g.ordini.reduce(function(sum, o) {
+              if (hasGF && /^NT/i.test(String(o.num_ordine_wki || ''))) return sum;
+              return sum + (o.durata_mesi || 0);
+            }, 0);
           });
           return Object.keys(gruppi)
             .map(function(k) { return gruppi[k]; })
