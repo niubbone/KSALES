@@ -413,15 +413,10 @@
                 <span class="text-xs text-gray-400">Totale ricevuto</span>
                 <p class="font-semibold text-green-700" x-text="contrattoDetail.firma && fmtEuro(contrattoDetail.firma.importo)"></p>
               </div>
-              <template x-if="contrattoDetail.firma && contrattoDetail.firma.per_categoria">
-                <div class="text-sm">
-                  <span class="text-xs text-gray-400 block mb-1">Dettaglio</span>
-                  <template x-for="cat in ['abbonamento','formazione','hypercare','import_dati']" :key="cat">
-                    <div x-show="contrattoDetail.firma.per_categoria[cat]" class="flex gap-3 items-center">
-                      <span class="text-xs w-24" :class="colorCategoria(cat)" x-text="labelCategoria(cat)"></span>
-                      <span class="font-medium text-xs" x-text="fmtEuro(contrattoDetail.firma.per_categoria[cat])"></span>
-                    </div>
-                  </template>
+              <template x-for="cat in ['abbonamento','formazione','hypercare','import_dati']" :key="cat">
+                <div x-show="contrattoDetail.firma && contrattoDetail.firma.per_categoria && contrattoDetail.firma.per_categoria[cat]">
+                  <span class="text-xs text-gray-400" x-text="labelCategoria(cat)"></span>
+                  <p class="font-semibold" :class="colorCategoria(cat)" x-text="fmtEuro(contrattoDetail.firma.per_categoria[cat])"></p>
                 </div>
               </template>
             </div>
