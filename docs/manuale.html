@@ -565,14 +565,10 @@ S148                    →      43
   </tbody>
 </table>
 
-<h3>Dvend ANOMALIA — esclusione da calcoli e vista</h3>
-<p>Dvend con <code>stato = ANOMALIA</code> in CONTRATTI sono duplicati SAP (es. due ordini NT per la stessa annualità CAN.BIENN). Vengono esclusi completamente da <code>apiGetContrattoCommerciale</code>:</p>
-<ul>
-  <li>Non compaiono nella lista <strong>ORDINI SAP</strong> del frontend</li>
-  <li>Non contribuiscono a imponibili, composizione, firmaImportoPerCat</li>
-  <li>Non contribuiscono a <code>provvRicevuta</code> né <code>provvAttesa</code></li>
-</ul>
-<p>La loro presenza in CONTRATTI rimane utile per il matching tramite <code>n_doc</code>, ma non producono dati visibili. Se stai vedendo totali imponibili gonfiati (es. 4900 invece di 3100 per un triennale), verificare se ci sono dvend ANOMALIA con <code>netYASV &gt; 0</code> che andrebbero aggiornati a stato ANOMALIA in CONTRATTI.</p>
+<h3>Dvend ANOMALIA — significato e visibilità nel dettaglio commerciale</h3>
+<p><code>stato = ANOMALIA</code> in CONTRATTI è un indicatore di <strong>anomalia provvigionale</strong> calcolato da <code>aggiornaStatiContratti</code>: saldo negativo + nessun incasso da &gt;6 mesi + firma &gt;3 mesi fa. <strong>Non indica un duplicato SAP</strong> e non esclude il dvend dal dettaglio commerciale.</p>
+<p>I dvend ANOMALIA <strong>compaiono regolarmente</strong> in <code>apiGetContrattoCommerciale</code>: sono visibili nella lista ORDINI SAP, contribuiscono a imponibili e composizione, e partecipano al calcolo di <code>provvAttesa</code> e <code>provvRicevuta</code>. Lo stato ANOMALIA serve solo per il filtro nella lista contratti e per le segnalazioni.</p>
+<blockquote><strong>Nota storica (@108):</strong> in precedenza <code>apiGetContrattoCommerciale</code> escludeva i dvend ANOMALIA confondendoli con duplicati SAP. Questo causava la sparizione dal dettaglio commerciale di dvend legittimi (es. anno 3 di un triennale X200 non ancora incassato). Il filtro è stato rimosso: gli NT stornati sono già esclusi dall'imponibile via <code>netImpByDvend &gt; 0</code>.</blockquote>
 
 <h3>Diagnostica</h3>
 <pre><code>_diagnosticRendiconti   → sheet DIAGNOSTIC + Logger compatto (non modifica dati)
