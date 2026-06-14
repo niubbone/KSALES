@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KS — Knowledge Base</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:1020px;margin:2rem auto;padding:0 1.5rem;line-height:1.7;color:#222}
+  h1{color:#1c3557;border-bottom:3px solid #1c3557;padding-bottom:.4em;margin-top:0}
+  h2{color:#1c3557;border-bottom:2px solid #1c3557;padding-bottom:.25em;margin-top:2.5em}
+  h3{color:#2a5a8a;margin-top:1.8em}
+  h4{color:#3a6a9a;margin-top:1.2em;margin-bottom:.3em}
+  code{background:#f0f4f8;padding:.1em .35em;border-radius:3px;font-size:.88em;color:#1c3557}
+  pre{background:#f0f4f8;padding:1em 1.2em;border-radius:6px;overflow-x:auto;border-left:4px solid #1c3557}
+  pre code{background:none;padding:0;color:#222;font-size:.9em}
+  table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.92em}
+  th,td{border:1px solid #ccc;padding:.45em .75em;text-align:left;vertical-align:top}
+  th{background:#1c3557;color:#fff}
+  tr:nth-child(even){background:#f9f9f9}
+  blockquote{border-left:4px solid #1c3557;margin:1em 0;padding:.6em 1em;background:#f0f4f8;color:#444;border-radius:0 4px 4px 0}
+  hr{border:none;border-top:1px solid #ddd;margin:2.5em 0}
+  .bug-open{border-left:4px solid #c0392b;background:#fdf0ef;padding:.7em 1em;margin:.8em 0;border-radius:0 4px 4px 0}
+  .bug-closed{border-left:4px solid #27ae60;background:#f0faf4;padding:.7em 1em;margin:.8em 0;border-radius:0 4px 4px 0}
+  .unknown{border-left:4px solid #e67e22;background:#fef9f0;padding:.7em 1em;margin:.8em 0;border-radius:0 4px 4px 0}
+  .warn{border-left:4px solid #c0392b;background:#fdf0ef;padding:.6em 1em;margin:.8em 0;border-radius:0 4px 4px 0}
+  .note{border-left:4px solid #27ae60;background:#f0faf4;padding:.6em 1em;margin:.8em 0;border-radius:0 4px 4px 0}
+  .info{border-left:4px solid #2980b9;background:#eaf4fb;padding:.6em 1em;margin:.8em 0;border-radius:0 4px 4px 0}
+  .toc{background:#f8f9fa;border:1px solid #ddd;padding:1em 1.5em;border-radius:6px;margin-bottom:2em}
+  .toc ol{margin:.3em 0;padding-left:1.4em}
+  .toc li{margin:.2em 0}
+  .toc a{color:#1c3557;text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .badge{display:inline-block;padding:1px 8px;border-radius:4px;font-size:.8em;font-weight:600;margin-left:.3em}
+  .badge-open{background:#fee2e2;color:#b91c1c}
+  .badge-closed{background:#dcfce7;color:#15803d}
+  .badge-unknown{background:#ffedd5;color:#c2410c}
+  .version{color:#666;font-size:.9em;margin-bottom:1.5em}
+  .trial{margin:.4em 0;padding:.3em .7em;background:#fff7e6;border-left:3px solid #f39c12;border-radius:0 3px 3px 0;font-size:.93em}
+  .trial::before{content:"✗ ";color:#c0392b;font-weight:700}
+  .fix{margin:.4em 0;padding:.3em .7em;background:#f0faf4;border-left:3px solid #27ae60;border-radius:0 3px 3px 0;font-size:.93em}
+  .fix::before{content:"✓ ";color:#27ae60;font-weight:700}
+</style>
+</head>
+<body>
+
+<h1>KS — Knowledge Base<br><small style="font-size:.5em;font-weight:400;color:#555">Riferimento AI/Sviluppatore — trial &amp; error, bug storici, strutture non ancora dominate</small></h1>
+
+<p class="version">
+  <strong>Aggiornato:</strong> 2026-06-14 · GAS @108 &nbsp;|&nbsp;
+  <strong>Scopo:</strong> questo file deve essere letto all'inizio di ogni sessione di lavoro sul codice KS e aggiornato dopo ogni sessione con nuovi bug, fix, e osservazioni.<br>
+  <strong>Struttura:</strong> <a href="manuale.html">Manuale</a> = come funziona · <a href="quickstart.html">Quickstart</a> = cosa eseguire · questo file = cosa abbiamo imparato nel tempo.
+</p>
+
+<div class="toc">
+  <strong>Indice</strong>
+  <ol>
+    <li><a href="#bug-aperti">Bug aperti / questioni irrisolte</a></li>
+    <li><a href="#bug-chiusi">Bug chiusi — causa, fix, tentativi falliti</a></li>
+    <li><a href="#strutture-sap">Strutture SAP non ancora dominate</a></li>
+    <li><a href="#architettura">Architettura — punti non ovvi</a></li>
+    <li><a href="#casi-riferimento">Casi di riferimento</a></li>
+    <li><a href="#diagnostica">Diagnostica disponibile</a></li>
+    <li><a href="#regole-deploy">Regole deploy e cache</a></li>
+  </ol>
+</div>
+
+<hr>
+
+<h2 id="bug-aperti">1. Bug aperti / questioni irrisolte</h2>
+
+<!-- ──────────────────────────────────────────────────────────────────────── -->
+<h3>BUG-01 — KRSV: incassi mensili non catturati per alcuni clienti <span class="badge badge-open">APERTO</span></h3>
+
+<div class="bug-open">
+  <strong>Sintomo:</strong> nella tab PAG e nel dettaglio commerciale frontend, gli incassi mensili di alcuni contratti (es. DIOZZI) non compaiono o appaiono a zero anche quando il pagamento risulta avvenuto.
+</div>
+
+<h4>Causa sospettata</h4>
+<p>Nel rendiconto SAP, le righe <strong>KRSV</strong> (incasso) hanno il campo <code>doc_vend</code> (colonna r[15]) valorizzato con il <strong>billing document</strong> (es. <code>6xxxxxxxx</code>), non con il numero d'ordine WKI originale. Il sistema associa le righe ai contratti tramite <code>doc_vend</code>, quindi il KRSV con billing doc non viene mai collegato all'ordine corretto in PAG.</p>
+
+<h4>Dove guardare nel codice</h4>
+<ul>
+  <li><code>generaCS.gs</code> — join RENDICONTI ↔ CONTRATTI usa <code>doc_vend</code></li>
+  <li><code>apiDB.gs</code> — <code>apiGetContrattoCommerciale</code>: il pre-pass filtra per <code>dvends[dvend]</code> dove dvend è <code>r[15]</code></li>
+  <li>Colonna r[18] = <code>n_doc</code> (billing doc / n. documento SAP) — potrebbe essere la chiave alternativa per KRSV</li>
+</ul>
+
+<h4>Prossimo passo diagnostico</h4>
+<pre><code>// In diagnostica.gs, impostare RAGIONE_SOCIALE = 'DIOZZI' poi eseguire:
+_debugRendicontiCliente()
+// → tab DEBUG_REND: verificare colonna doc_vend(r15) vs n_doc(r18) sulle righe KRSV
+// Se r15 è un billing doc (6xxxxxxx) e r18 è l'ordine WKI → confermato il bug</code></pre>
+
+<h4>Impatto</h4>
+<p>Solo i contratti dove SAP emette il KRSV con billing doc diverso dall'ordine originale. Non tutti i clienti sono affetti — dipende da come SAP gestisce il ciclo incasso per quel contratto specifico.</p>
+
+<!-- ──────────────────────────────────────────────────────────────────────── -->
+<h3>BUG-02 — ~12 ordini #NUM RINNOVO ANN. non aggregati <span class="badge badge-open">APERTO</span></h3>
+
+<div class="bug-open">
+  <strong>Sintomo:</strong> nella sheet DIAGNOSTIC e nel log di <code>_diagnosticRendiconti</code>, ~12 ordini numerici (es. <code>102xxxxxxx</code>) con desc <code>RINN.ANN.</code> rimangono senza <code>num_contratto</code> assegnato (nc_VUOTI). Appaiono come righe separate nel CS invece di essere aggregati al contratto quadro.
+</div>
+
+<h4>Causa</h4>
+<p>Le Strategie 1-2 e i PASS 1-5 non coprono il pattern "ordine numerico che rinnova un altro ordine numerico": manca un collegamento esplicito via <code>n_doc</code> condiviso e la co-occorrenza non è sufficiente (ratio 0.15 non superata).</p>
+
+<h4>Prossimo passo</h4>
+<p>Implementare PASS 6: per ordini <code>#NUM + RINN.ANN.</code> senza NC, cercare in RENDICONTI lo stesso (cliente, mese) con ordine numerico diverso già aggregato → assegna quel NC. Verificare prima con <code>_diagnosticRendiconti</code> quanti sono e se la co-occorrenza è affidabile.</p>
+
+<!-- ──────────────────────────────────────────────────────────────────────── -->
+<h3>BUG-03 — GK orfani: PASS 5 non li collega in tutti i casi <span class="badge badge-open">APERTO</span></h3>
+
+<div class="bug-open">
+  <strong>Sintomo:</strong> alcuni ordini <code>GK</code> (sostituti di ordini stornati) rimangono senza <code>num_contratto</code> anche dopo <code>_backfillNumContratto</code>. Appaiono come self-referential <code>SYN_GKxxxxxxx</code> nel frontend.
+</div>
+
+<h4>Motivi di fallimento documentati da <code>debugPass4b()</code></h4>
+<table>
+  <thead><tr><th>Motivo</th><th>Significato</th></tr></thead>
+  <tbody>
+    <tr><td><code>no_origImp</code></td><td>Il GK non ha righe YASV/YPFA in RENDICONTI — non abbiamo l'imponibile per il matching</td></tr>
+    <tr><td><code>no_cancelled</code></td><td>Non esiste nessun ordine stornato (netImp≤0) per lo stesso cliente — o è già stato aggregato</td></tr>
+    <tr><td><code>no_imp_match</code></td><td>L'imponibile del GK non corrisponde (±2€) a nessun ordine stornato dello stesso cliente</td></tr>
+    <tr><td><code>avrebbe_matchato</code></td><td>Il match sarebbe avvenuto — GK risulta già con NC assegnato (non è un problema)</td></tr>
+  </tbody>
+</table>
+
+<p>Eseguire <code>debugPass4b()</code> dopo <code>_backfillNumContratto</code> per la lista aggiornata dei GK orfani e relative cause.</p>
+
+<hr>
+
+<h2 id="bug-chiusi">2. Bug chiusi — causa, fix, tentativi falliti</h2>
+
+<!-- ──────────────────────────────────────────────────────────────────────── -->
+<h3>BUG-C01 — CARINCI ANDREA X200: imponibile triennale 1600 invece di 2200 <span class="badge badge-closed">RISOLTO @108</span></h3>
+
+<div class="bug-closed">
+  <strong>Fix:</strong> rimosso <code>anomaliaDvend</code> da <code>apiGetContrattoCommerciale</code> in <code>apiDB.gs</code>. Risolve automaticamente tutti i casi analoghi (non solo CARINCI).
+</div>
+
+<h4>Contratto di riferimento</h4>
+<p>CARINCI ANDREA · NC = <code>SYN_102199074</code> · X200 triennale · 5 dvend:</p>
+<table>
+  <thead><tr><th>dvend</th><th>Ruolo</th><th>Imponibile</th><th>Stato CONTRATTI</th></tr></thead>
+  <tbody>
+    <tr><td><code>102199074</code></td><td>Anno 1 (NUOVO)</td><td>1000€</td><td>SALDATO</td></tr>
+    <tr><td><code>GF00078533</code></td><td>Anno 2 (sostituto NT)</td><td>600€</td><td>SALDATO</td></tr>
+    <tr><td><code>GF00105211</code></td><td>Anno 3 (sostituto NT)</td><td>600€</td><td>ANOMALIA ← causa</td></tr>
+    <tr><td><code>NT02427201</code></td><td>Anno 2 stornato</td><td>0 (netImp≤0)</td><td>—</td></tr>
+    <tr><td><code>NT02427202</code></td><td>Anno 3 stornato</td><td>0 (netImp≤0)</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<h4>Causa radice</h4>
+<p><strong>Doppio significato di <code>stato='ANOMALIA'</code></strong>: il campo in CONTRATTI può assumere ANOMALIA per due ragioni completamente diverse che il codice confondeva:</p>
+<ol>
+  <li><strong>Semantica corretta (<code>aggiornaStatiContratti</code>):</strong> saldo negativo + nessun incasso da >6 mesi + firma >3 mesi fa → anomalia <em>provvigionale</em>. GF00105211 era ANOMALIA perché non aveva ancora ricevuto l'incasso (anno 3 in attesa).</li>
+  <li><strong>Semantica errata (<code>apiGetContrattoCommerciale</code>):</strong> il codice usava ANOMALIA come proxy per "duplicato SAP da escludere" → escludeva GF00105211 da ordini, imponibili, provvAttesa, provvRicevuta.</li>
+</ol>
+
+<h4>Tentativi falliti — cosa NON ha funzionato</h4>
+<div class="trial">GF00105211 non aveva NC in CONTRATTI → <strong>FALSO</strong>: aveva correttamente <code>SYN_102199074</code> assegnato da PASS 4 via NT02427202</div>
+<div class="trial">Browser / PWA cache stale → <strong>FALSO</strong>: <code>debugSimulaContrattoCarinci()</code> ha mostrato che anche il server calcolava 1600 (anomaliaDvend attivo)</div>
+<div class="trial">Service worker cache → <strong>FALSO</strong>: dopo unregister + clearAllCache ancora 1600 — server-side</div>
+<div class="trial"><code>_getDB()</code> puntava a spreadsheet diverso → <strong>FALSO</strong>: usa <code>getActiveSpreadsheet()</code> sia in prod che in diagnostica</div>
+<div class="trial"><code>netImpByDvend</code> escludeva GF00105211 → <strong>FALSO</strong>: GF00105211 aveva YPFA 202402 con provv positivi, quindi netImpByDvend>0</div>
+<div class="trial">Blocco sibling-copy fallback (@103-@106) era la causa → <strong>FALSO</strong>: era dead code già rimosso nelle versioni precedenti</div>
+<div class="fix">Filtro <code>if (anomaliaDvend[dvend]) return;</code> in apiGetContrattoCommerciale → <strong>VERO</strong>: rimosso @108, imponibile passa a 2200</div>
+
+<h4>Come diagnosticare in futuro</h4>
+<p>Se un dvend scompare dal dettaglio commerciale pur essendo in CONTRATTI con NC corretto:</p>
+<ol>
+  <li>Verificare <code>stato</code> in CONTRATTI per quel dvend — con @108 non dovrebbe più essere il problema</li>
+  <li>Eseguire <code>debugApiCommerciale()</code> con il NC in questione (modificare la variabile <code>NUM_CONTRATTO</code>)</li>
+  <li>Verificare che <code>netImpByDvend[dvend] > 0</code> (dvend deve avere almeno una riga YASV/YPFA con imp>0)</li>
+</ol>
+
+<h4>@107 — errore intermedio "anomaliaDvend is not defined"</h4>
+<p>Il deploy @107 aveva rimosso la <em>dichiarazione</em> di <code>anomaliaDvend</code> ma non tutte le <em>referenze</em> (rimaste nel blocco sibling-copy). Fix: rimosso l'intero blocco sibling-copy e ridistribuito come @108.</p>
+
+<hr>
+
+<h2 id="strutture-sap">3. Strutture SAP non ancora dominate</h2>
+
+<h3>3.1 — doc_vend vs billing_doc in KRSV (BUG-01 correlato)</h3>
+
+<div class="unknown">
+  <strong>Non ancora chiarito:</strong> per i codici <code>KRSV</code> / <code>KSBF</code> (incasso), il campo <code>doc_vend</code> (r[15] del CSV SAP) contiene l'ordine WKI oppure il billing document (numero fattura 6xxxxxxxx)?
+</div>
+
+<p>L'ipotesi corrente — non ancora verificata sistematicamente — è che per alcuni clienti SAP emetta il KRSV con <code>doc_vend = billing_doc</code>. Se confermata, il sistema deve usare <code>n_doc</code> (r[18]) come chiave alternativa per collegare KRSV agli ordini.</p>
+
+<p><strong>Verifica:</strong> eseguire <code>_debugRendicontiCliente()</code> su un cliente con incasso mancante → tab DEBUG_REND → colonna <code>doc_vend(r15)</code> su righe KRSV: se è un numero a 9 cifre che inizia con 6, è un billing doc.</p>
+
+<h3>3.2 — Struttura-A vs Struttura-B nei triennali</h3>
+
+<div class="unknown">
+  <strong>Non ancora chiarito:</strong> in un contratto triennale, SAP può usare due strutture diverse:
+  <ul style="margin:.4em 0">
+    <li><strong>Struttura-A:</strong> un unico dvend con più righe YASV in anni diversi (es. firma anno 1 + firma anno 2 + firma anno 3 tutte su stesso doc_vend)</li>
+    <li><strong>Struttura-B:</strong> un dvend per anno (anno 1 = G0xxxxxxx, anno 2 = NT xxxxxxx, anno 3 = NT xxxxxxx) ciascuno con il proprio YASV</li>
+  </ul>
+  La struttura B è quella prevalente e coperta dal backfill (PASS 4). La struttura A richiederebbe logica diversa.
+</div>
+
+<p><strong>Verifica per un NC specifico:</strong></p>
+<pre><code>// In diagnostica.gs:
+// Modificare NC e eseguire debugNC()
+// Execution Log mostra: "STRUTTURA-A (multi-YASV)" o "struttura-B (singolo YASV)"</code></pre>
+
+<h3>3.3 — NT con imp&gt;0: storno parziale o errore?</h3>
+
+<div class="unknown">
+  <strong>Non chiarito:</strong> esistono dvend NT con <code>netImpByDvend &gt; 0</code> (non stornati completamente). Il sistema li include nell'imponibile come dvend attivi. Non è chiaro se questo sia corretto o se siano NT "a metà" da investigare.
+</div>
+
+<p>La condizione <code>(netImpByDvend[dvend] || 0) &gt; 0</code> in <code>apiGetContrattoCommerciale</code> gestisce questo: un NT con netImp>0 contribuisce all'imponibile, uno con netImp≤0 viene ignorato. Sembra il comportamento corretto ma non è stato verificato su casi reali.</p>
+
+<h3>3.4 — KASV: storno incasso — meccanismo non ancora esplorato</h3>
+
+<div class="unknown">
+  <strong>Non chiarito:</strong> le righe <code>KASV</code> (storno anticipo) compaiono nei rendiconti ma non vengono usate nel calcolo principale. Presumibilmente compensano KRSV su righe AO, ma il meccanismo esatto non è stato verificato. Potrebbero essere rilevanti per il BUG-01 KRSV.
+</div>
+
+<h3>3.5 — n_doc (r[18]): scheduling agreement o billing doc?</h3>
+
+<div class="unknown">
+  <strong>Semantica duplice non risolta:</strong> il campo <code>n_doc</code> (colonna r[18]) viene usato dal backfill (Strategia 1) come "scheduling agreement" condiviso tra più ordini per aggregarli. Tuttavia lo stesso campo per le righe KRSV potrebbe contenere il billing doc. Non è chiaro se il campo abbia semantica diversa a seconda del <code>tp_remun</code>.
+</div>
+
+<hr>
+
+<h2 id="architettura">4. Architettura — punti non ovvi</h2>
+
+<h3>4.1 — dvend ANOMALIA: due significati completamente diversi</h3>
+<p>Il campo <code>stato</code> in CONTRATTI vale <code>ANOMALIA</code> per anomalia <em>provvigionale</em> (aggiornaStati), ma in passato (@107 e prima) veniva erroneamente usato in <code>apiGetContrattoCommerciale</code> come indicatore di "duplicato SAP". <strong>Dal @108 non esiste più questo filtro.</strong> Gli NT stornati sono già esclusi dall'imponibile via <code>netImpByDvend &gt; 0</code>.</p>
+
+<h3>4.2 — GF dvend: non sono rinnovi normali</h3>
+<p>I dvend con prefisso <code>GF</code> sono ordini di <em>sostituzione</em> emessi quando un NT viene cancellato. Vengono classificati da <code>_inferTipoEDurata</code> come RINNOVO 12m, ma la loro connessione al contratto quadro avviene tramite PASS 4 (co-occorrenza con NT cancellato nello stesso mese/cliente), non tramite <code>n_doc</code>. Se il NT cancellato non ha righe RENDICONTI, PASS 4 non può collegarli.</p>
+
+<h3>4.3 — Cache a due livelli: deploy non invalida la GAS cache</h3>
+<p>Dopo ogni <code>clasp push + deploy</code>, la <strong>CacheService GAS</strong> (TTL 30 min) non viene svuotata automaticamente. Il codice nuovo è attivo ma i risultati vecchi vengono restituiti dalla cache finché non scadono. Eseguire sempre <code>clearAllCache()</code> o «Aggiorna tutto» dal frontend dopo ogni deploy che modifica calcoli.</p>
+<ul>
+  <li>Chiavi cache: <code>det_XXX</code> (dettaglio singolo ordine), <code>comm_XXX</code> (contratto commerciale)</li>
+  <li>Per svuotare una chiave specifica in diagnostica: <code>CacheService.getScriptCache().remove('comm_SYN_xxxxxxx')</code></li>
+</ul>
+
+<h3>4.4 — backfillNumContratto è idempotente: azzera i SYN_ ad ogni run</h3>
+<p>PASS 1 resetta tutti i <code>SYN_</code> esistenti prima di riassegnarli. Questo significa che <code>_backfillNumContratto</code> può essere eseguito più volte senza effetti collaterali. Non è necessario eseguire <code>_resetNumContratto</code> prima (è diventato opzionale).</p>
+
+<h3>4.5 — gestite dal 2024: sempre NUOVO</h3>
+<p>Per le linee gestite (G174, X136, G020, F502) con <code>data_firma ≥ 2024</code>, il sistema forza <code>tipo = 'NUOVO'</code> indipendentemente da quanto risulta in CONTRATTI. La regola è hardcodata in <code>apiDB.gs</code> nella funzione di calcolo aliquota. Il motivo: dal 01/01/2024 WKI non ha rinnovi sulle gestite.</p>
+
+<h3>4.6 — clasp: MAI deploy senza --deploymentId</h3>
+<p>Un <code>clasp deploy</code> senza <code>--deploymentId</code> crea un nuovo Web App URL. Il frontend è hardcodato sull'URL del deployment esistente — un nuovo deployment rompe il frontend silenziosamente (vecchio URL risponde ancora con il codice vecchio, nuovo URL non usato).</p>
+<p>Deployment ID attivo: <code>AKfycbzhJBtZ7-6pn5pCiRKQNHm1CeRLiNbXaiin-gfktPE0SL8b1-4KvFdTaFEBcsoYIlqv</code></p>
+<p>Sequenza corretta: <code>clasp push</code> → <code>clasp deploy --deploymentId &lt;ID&gt; --description "vN"</code></p>
+
+<h3>4.7 — hasPosYASVByDvend vs netImpByDvend: scopi diversi</h3>
+<table>
+  <thead><tr><th>Variabile</th><th>Accumula</th><th>Uso</th></tr></thead>
+  <tbody>
+    <tr><td><code>hasPosYASVByDvend</code></td><td><code>true</code> se almeno una riga YASV con provv&gt;0</td><td>Rilevare NT stornati (poi GF) in <code>aggiornaStati.gs</code></td></tr>
+    <tr><td><code>netImpByDvend</code></td><td>Somma imponibili YASV/YPFA (può essere negativa)</td><td>Escludere NT stornati dall'imponibile in <code>apiGetContrattoCommerciale</code></td></tr>
+    <tr><td><code>netYASVByDvend</code></td><td>Somma provvigioni YASV/YPFA</td><td>Determinare se il dvend ha provvigioni positive (firma avvenuta)</td></tr>
+  </tbody>
+</table>
+
+<h3>4.8 — num_contratto SYN_ vs reale</h3>
+<p>Un <code>num_contratto</code> che inizia con <code>SYN_</code> è un identificatore sintetico costruito dal backfill. Uno senza prefisso SYN_ è un <code>n_doc</code> reale proveniente da SAP (scheduling agreement). I contratti con <code>n_doc</code> reale condiviso tra più dvend sono i più affidabili; quelli SYN_ dipendono dalla logica di backfill (più fragile).</p>
+
+<h3>4.9 — healthCheckMensile: eseguire come FASE 4</h3>
+<p>La funzione <code>healthCheckMensile()</code> / <code>_healthCheckMensile()</code> in <code>diagnostica.gs</code> esegue 6 check di coerenza cross-contratto e scrive i risultati nella tab <code>HEALTH_CHECK</code>. Andrebbe eseguita dopo <code>flusso_3_genera</code> ogni mese per rilevare anomalie prima che diventino problemi. I check includono: storno orfano, dvend senza contratto, contratto senza rendiconto, NT stornato ancora in ANOMALIA, GF orfani, NC multi-linea.</p>
+
+<hr>
+
+<h2 id="casi-riferimento">5. Casi di riferimento</h2>
+
+<h3>5.1 — CARINCI ANDREA: triennale X200 con GF sostituto</h3>
+<p><strong>NC:</strong> <code>SYN_102199074</code> · <strong>Linea:</strong> X200 · <strong>Tipo:</strong> NUOVO · <strong>Imponibile:</strong> 2200€</p>
+<p>Caso di riferimento per: dvend GF collegato da PASS 4, stato ANOMALIA su dvend legittimo (anno 3 non ancora incassato), bug @108 risolto.</p>
+<p>5 dvend: <code>102199074</code> (anno 1, 1000€) + <code>GF00078533</code> (anno 2, 600€) + <code>GF00105211</code> (anno 3, 600€) + <code>NT02427201</code> (stornato, netImp=0) + <code>NT02427202</code> (stornato, netImp=0).</p>
+
+<h3>5.2 — DIOZZI: caso KRSV con billing doc</h3>
+<p>Cliente di riferimento per BUG-01 (incassi KRSV non catturati). Non ancora analizzato in dettaglio — eseguire <code>_debugRendicontiCliente()</code> con <code>RAGIONE_SOCIALE = 'DIOZZI'</code> e verificare r[15] vs r[18] sulle righe KRSV.</p>
+
+<hr>
+
+<h2 id="diagnostica">6. Diagnostica disponibile</h2>
+
+<p>Tutte le funzioni seguenti sono in <code>diagnostica.gs</code>. Non modificano dati operativi. Le tab di debug possono essere pulite con <code>_pulisciTabDebug()</code>.</p>
+
+<table>
+  <thead><tr><th>Funzione</th><th>Output</th><th>Quando usare</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>_diagnosticRendiconti()</code></td>
+      <td>Tab DIAGNOSTIC + Logger</td>
+      <td>Dopo backfill: verifica distribuzione SYN_, nc_VUOTI, GRUPPI_ANOMALI. Valori normali: nc_SYN_ ~77-80%, nc_VUOTI ~20-23%, GRUPPI_ANOMALI = 0</td>
+    </tr>
+    <tr>
+      <td><code>debugApiCommerciale()</code></td>
+      <td>Logger</td>
+      <td>Debugging apiGetContrattoCommerciale per un NC (modificare <code>NUM_CONTRATTO</code> nel codice). Logga firmaImportoPerCat step by step</td>
+    </tr>
+    <tr>
+      <td><code>_debugRendicontiCliente()</code></td>
+      <td>Tab DEBUG_REND</td>
+      <td>Analisi raw di tutti i rendiconti per un cliente (modificare <code>RAGIONE_SOCIALE</code>). Utile per BUG-01 KRSV: verificare r[15] vs r[18]</td>
+    </tr>
+    <tr>
+      <td><code>debugNC()</code></td>
+      <td>Tab DEBUG_NC + Logger</td>
+      <td>Struttura dettagliata di tutti i dvend di un NC (modificare <code>NC</code>). Identifica Struttura-A (multi-YASV) vs Struttura-B (singolo YASV per dvend)</td>
+    </tr>
+    <tr>
+      <td><code>debugPrefissiOrdini()</code></td>
+      <td>Logger + alert</td>
+      <td>Distribuzione prefissi (G, NT, GF, GK, GX, #NUM) in CONTRATTI per linea e tipo. Verifica copertura pattern SAP</td>
+    </tr>
+    <tr>
+      <td><code>_listaCandidatiCampione()</code></td>
+      <td>Tab CAMPIONE_CANDIDATI</td>
+      <td>Clienti con mix di prefissi G+NT+GF. Righe gialle = clienti con GF. Utile per trovare candidati per test PASS 4</td>
+    </tr>
+    <tr>
+      <td><code>debugPass4b()</code></td>
+      <td>Tab DEBUG_PASS4B + Logger</td>
+      <td>Lista GK orfani con motivo di fallimento PASS 5 (no_origImp / no_cancelled / no_imp_match). Eseguire dopo _backfillNumContratto</td>
+    </tr>
+    <tr>
+      <td><code>healthCheckMensile()</code></td>
+      <td>Tab HEALTH_CHECK</td>
+      <td>6 check di coerenza cross-contratto. Eseguire come FASE 4 mensile dopo flusso_3_genera. Classificazione ERR/WARN/OK per tipo anomalia</td>
+    </tr>
+    <tr>
+      <td><code>_pulisciTabDebug()</code></td>
+      <td>Elimina tab debug</td>
+      <td>Elimina: DIAGNOSTIC, DEBUG_REND, CAMPIONE_CANDIDATI, DEBUG_NC, DEBUG_PASS4B, HEALTH_CHECK. Eseguire quando si vuole pulire il foglio</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2 id="regole-deploy">7. Regole deploy e cache — riepilogo operativo</h2>
+
+<table>
+  <thead><tr><th>Regola</th><th>Perché</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Sempre <code>clasp push</code> + <code>clasp deploy --deploymentId &lt;ID&gt;</code></td>
+      <td>Un deploy senza --deploymentId crea un nuovo URL rompendo il frontend</td>
+    </tr>
+    <tr>
+      <td>Dopo ogni deploy: eseguire <code>clearAllCache()</code> o «Aggiorna tutto»</td>
+      <td>La GAS CacheService non viene svuotata automaticamente al deploy</td>
+    </tr>
+    <tr>
+      <td>Se il frontend mostra dati vecchi dopo clearAllCache: verificare che sia stato deployato il codice nuovo (non solo pushato)</td>
+      <td><code>clasp push</code> aggiorna il codice sorgente GAS ma NON aggiorna il deployment live</td>
+    </tr>
+    <tr>
+      <td>Se clasp login scade: <code>! clasp login</code> nel terminale della sessione corrente</td>
+      <td>Il token OAuth di clasp scade; <code>! clasp login</code> permette di re-autenticarsi senza uscire dalla sessione di lavoro</td>
+    </tr>
+    <tr>
+      <td>Dopo un fix a <code>apiGetContrattoCommerciale</code>: svuotare le chiavi <code>comm_</code> specifiche o eseguire <code>clearAllCache()</code></td>
+      <td>Le chiavi <code>comm_NC</code> hanno TTL 30 min — senza svuotamento il vecchio risultato viene servito dalla cache</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="info">
+  <strong>ID deployment attivo:</strong> <code>AKfycbzhJBtZ7-6pn5pCiRKQNHm1CeRLiNbXaiin-gfktPE0SL8b1-4KvFdTaFEBcsoYIlqv</code><br>
+  Comando standard: <code>clasp push &amp;&amp; clasp deploy --deploymentId AKfycbzhJBtZ7-6pn5pCiRKQNHm1CeRLiNbXaiin-gfktPE0SL8b1-4KvFdTaFEBcsoYIlqv --description "vN-descrizione"</code>
+</div>
+
+</body>
+</html>
