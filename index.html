@@ -29,6 +29,7 @@
     <button @click="navTo('contratti')" :class="vista==='contratti' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Contratti</button>
     <button @click="navTo('clienti')"   :class="vista==='clienti'||vista==='cliente-detail'||vista==='contratto-comm-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Clienti</button>
     <button @click="navTo('segnalazioni')" :class="vista==='segnalazioni'||vista==='segnalazione-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Segnalazioni</button>
+    <button @click="navTo('anomalie-mese')" :class="vista==='anomalie-mese' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Mese</button>
     <!-- Ricerca contestuale inline nella navbar -->
     <input x-show="vista==='contratti'" x-model="filtroContratti" type="search"
            placeholder="Cerca contratto, cliente, ordine…"
@@ -50,7 +51,7 @@
   </nav>
 
   <!-- Breadcrumb -->
-  <div x-show="vista !== 'contratti' && vista !== 'clienti' && vista !== 'segnalazioni'" class="bg-white border-b px-6 py-2 text-sm text-gray-500 flex items-center gap-2">
+  <div x-show="vista !== 'contratti' && vista !== 'clienti' && vista !== 'segnalazioni' && vista !== 'anomalie-mese'" class="bg-white border-b px-6 py-2 text-sm text-gray-500 flex items-center gap-2">
     <span x-show="vista === 'cliente-detail'">
       <button @click="navTo('clienti')" class="hover:text-[#1c3557]">Clienti</button>
       <span class="mx-1">›</span>
@@ -1057,6 +1058,156 @@
     </template>
   </section>
 
+  <!-- ── VISTA: ANOMALIE MESE ────────────────────────────────────── -->
+  <section x-show="!loading && vista==='anomalie-mese'" class="p-6">
+    <!-- Selettore mese -->
+    <div class="flex items-center gap-4 mb-6">
+      <h1 class="text-lg font-semibold shrink-0">Anomalie del mese</h1>
+      <select x-model="meseAnomalie" @change="_loadAnomalieByMese()"
+              class="border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1c3557]">
+        <template x-for="opt in meseOptions" :key="opt.value">
+          <option :value="opt.value" x-text="opt.label"></option>
+        </template>
+      </select>
+    </div>
+
+    <!-- Loader -->
+    <div x-show="loadingAnomalie" class="flex items-center justify-center gap-3 py-16 text-gray-400">
+      <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+      Caricamento anomalie…
+    </div>
+
+    <!-- Errore -->
+    <div x-show="erroreAnomalie && !loadingAnomalie"
+         class="p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm" x-text="erroreAnomalie"></div>
+
+    <!-- Report -->
+    <template x-if="anomalieReport && !loadingAnomalie">
+      <div class="space-y-8">
+
+        <!-- ── Riconciliazione per linea ── -->
+        <div>
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Riconciliazione per linea</h2>
+
+          <!-- Badge riepilogo -->
+          <div class="flex flex-wrap gap-2 mb-4">
+            <template x-if="anomalieReport.riconciliazione.length === 0">
+              <span class="text-sm text-gray-400 italic">Nessun dato per questo mese</span>
+            </template>
+            <template x-if="anomalieReport.riconciliazione.filter(r=>r.esito==='MANCA_REND').length > 0">
+              <span class="px-3 py-1 rounded text-xs font-semibold bg-red-100 text-red-700"
+                    x-text="anomalieReport.riconciliazione.filter(r=>r.esito==='MANCA_REND').length + ' MANCA REND'"></span>
+            </template>
+            <template x-if="anomalieReport.riconciliazione.filter(r=>r.esito==='REND_SENZA_EST').length > 0">
+              <span class="px-3 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-700"
+                    x-text="anomalieReport.riconciliazione.filter(r=>r.esito==='REND_SENZA_EST').length + ' REND SENZA EST'"></span>
+            </template>
+            <template x-if="anomalieReport.riconciliazione.filter(r=>r.esito==='VERIFICA').length > 0">
+              <span class="px-3 py-1 rounded text-xs font-semibold bg-yellow-100 text-yellow-800"
+                    x-text="anomalieReport.riconciliazione.filter(r=>r.esito==='VERIFICA').length + ' VERIFICA'"></span>
+            </template>
+            <template x-if="anomalieReport.riconciliazione.length > 0 && anomalieReport.riconciliazione.every(r=>r.esito==='OK')">
+              <span class="px-3 py-1 rounded text-xs font-semibold bg-green-100 text-green-700">Tutto OK</span>
+            </template>
+          </div>
+
+          <div class="overflow-x-auto rounded shadow-sm" x-show="anomalieReport.riconciliazione.length > 0">
+            <table class="min-w-full text-sm bg-white">
+              <thead>
+                <tr class="bg-[#1c3557] text-white text-left">
+                  <th class="px-3 py-2 font-medium">Linea</th>
+                  <th class="px-3 py-2 font-medium text-right">Rend (n)</th>
+                  <th class="px-3 py-2 font-medium text-right">Provv effettiva</th>
+                  <th class="px-3 py-2 font-medium text-right">Est (n)</th>
+                  <th class="px-3 py-2 font-medium text-right">Provv attesa</th>
+                  <th class="px-3 py-2 font-medium text-right">Delta</th>
+                  <th class="px-3 py-2 font-medium text-right">Delta %</th>
+                  <th class="px-3 py-2 font-medium">Esito</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(r, i) in anomalieReport.riconciliazione" :key="r.linea">
+                  <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100">
+                    <td class="px-3 py-2 font-mono text-xs font-medium" x-text="r.linea"></td>
+                    <td class="px-3 py-2 text-right text-xs text-gray-500" x-text="r.n_rend || '—'"></td>
+                    <td class="px-3 py-2 text-right text-xs font-medium"
+                        x-text="r.n_rend > 0 ? fmtEuro(r.provv_effettiva) : '—'"></td>
+                    <td class="px-3 py-2 text-right text-xs text-gray-500" x-text="r.n_est || '—'"></td>
+                    <td class="px-3 py-2 text-right text-xs font-medium"
+                        x-text="r.n_est > 0 ? fmtEuro(r.provv_attesa) : '—'"></td>
+                    <td class="px-3 py-2 text-right text-xs font-medium"
+                        :class="r.delta > 0.5 ? 'text-red-600' : r.delta < -0.5 ? 'text-orange-600' : 'text-gray-400'"
+                        x-text="(r.n_rend > 0 && r.n_est > 0) ? fmtEuro(r.delta) : '—'"></td>
+                    <td class="px-3 py-2 text-right text-xs"
+                        x-text="(r.n_rend > 0 && r.n_est > 0) ? ((r.delta_pct > 0 ? '+' : '') + r.delta_pct + '%') : '—'"></td>
+                    <td class="px-3 py-2">
+                      <span :class="esitoClass(r.esito)" class="px-2 py-0.5 rounded text-xs font-medium"
+                            x-text="r.esito.replace('_',' ')"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Segnalazioni del mese ── -->
+        <div>
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            Segnalazioni del mese
+            <span x-show="anomalieReport.segnalazioni.length > 0"
+                  class="ml-2 bg-gray-200 text-gray-600 px-2 py-0.5 rounded text-xs font-normal normal-case"
+                  x-text="anomalieReport.segnalazioni.length"></span>
+          </h2>
+
+          <p x-show="anomalieReport.segnalazioni.length === 0"
+             class="text-sm text-gray-400 italic">Nessuna segnalazione per questo mese</p>
+
+          <div x-show="anomalieReport.segnalazioni.length > 0" class="overflow-x-auto rounded shadow-sm">
+            <table class="min-w-full text-sm bg-white">
+              <thead>
+                <tr class="bg-[#1c3557] text-white text-left">
+                  <th class="px-3 py-2 font-medium">ID</th>
+                  <th class="px-3 py-2 font-medium">Stato</th>
+                  <th class="px-3 py-2 font-medium">Cliente</th>
+                  <th class="px-3 py-2 font-medium">Linea</th>
+                  <th class="px-3 py-2 font-medium">Tipo problema</th>
+                  <th class="px-3 py-2 font-medium text-right">Delta</th>
+                  <th class="px-3 py-2 font-medium">Ordine / NC</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(s, i) in anomalieReport.segnalazioni" :key="s.id">
+                  <tr :class="i%2===0?'bg-white':'bg-gray-50'"
+                      class="border-b border-gray-100 hover:bg-blue-50 cursor-pointer"
+                      @click="openSegnalazione(s, s.stato==='CHIUSA'||s.stato==='OK')">
+                    <td class="px-3 py-2 font-mono text-xs font-medium text-[#1c3557]" x-text="s.id"></td>
+                    <td class="px-3 py-2">
+                      <span :class="segnStatoClass(s.stato)"
+                            class="px-2 py-0.5 rounded text-xs font-medium" x-text="s.stato"></span>
+                    </td>
+                    <td class="px-3 py-2 font-medium" x-text="s.ragione_sociale || '—'"></td>
+                    <td class="px-3 py-2 text-xs text-gray-500" x-text="s.linea || '—'"></td>
+                    <td class="px-3 py-2 text-xs text-gray-600" x-text="s.tipo_problema || '—'"></td>
+                    <td class="px-3 py-2 text-right text-xs font-medium"
+                        :class="s.delta < -0.5 ? 'text-orange-600' : s.delta > 0.5 ? 'text-red-600' : 'text-gray-400'"
+                        x-text="s.delta ? fmtEuro(s.delta) : '—'"></td>
+                    <td class="px-3 py-2 text-xs font-mono text-gray-500"
+                        x-text="(s.num_ordine||'—') + (s.num_contratto ? ' / ' + fmtNC(s.num_contratto) : '')"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </template>
+  </section>
+
   <script src="js/config.js"></script>
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
@@ -1112,6 +1263,10 @@
         nuovoLottoSegIds:        '',
         nuovoLottoOggetto:       '',
         creaLottoLoading:        false,
+        meseAnomalie:            '',
+        anomalieReport:          null,
+        loadingAnomalie:         false,
+        erroreAnomalie:          '',
 
         async init() {
           try {
@@ -1158,6 +1313,15 @@
           if (v === 'segnalazioni') {
             this.segnalazioneSelezionata = null;
             if (this.segnalazioni.length === 0) this._loadSegnalazioni();
+          }
+          if (v === 'anomalie-mese') {
+            this.segnalazioneSelezionata = null;
+            if (!this.meseAnomalie) {
+              var _now = new Date();
+              var _p   = new Date(_now.getFullYear(), _now.getMonth() - 1, 1);
+              this.meseAnomalie = String(_p.getFullYear()) + ('0' + (_p.getMonth() + 1)).slice(-2);
+            }
+            this._loadAnomalieByMese();
           }
           this._destroyChart();
           this._destroyChartComm();
@@ -1719,6 +1883,41 @@
         fmtEuro(n) {
           if (n === null || n === undefined || n === '') return '—';
           return Number(n).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+        },
+
+        async _loadAnomalieByMese() {
+          if (!this.meseAnomalie) return;
+          this.loadingAnomalie = true;
+          this.erroreAnomalie  = '';
+          this.anomalieReport  = null;
+          try {
+            this.anomalieReport = await API.getAnomalieByMese(this.meseAnomalie);
+          } catch(e) {
+            this.erroreAnomalie = String(e.message || e);
+          } finally {
+            this.loadingAnomalie = false;
+          }
+        },
+
+        get meseOptions() {
+          var opts = [];
+          var now  = new Date();
+          for (var i = 0; i < 36; i++) {
+            var d      = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            var yyyymm = String(d.getFullYear()) + ('0' + (d.getMonth() + 1)).slice(-2);
+            opts.push({ value: yyyymm, label: this.fmtMese(yyyymm) });
+          }
+          return opts;
+        },
+
+        esitoClass(esito) {
+          var m = {
+            'MANCA_REND':    'bg-red-100 text-red-700',
+            'REND_SENZA_EST':'bg-blue-100 text-blue-700',
+            'VERIFICA':      'bg-yellow-100 text-yellow-800',
+            'OK':            'bg-green-100 text-green-700'
+          };
+          return m[esito] || 'bg-gray-100 text-gray-600';
         }
       };
     }

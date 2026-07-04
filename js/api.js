@@ -46,6 +46,7 @@ var API = {
   getAgenzie:         function()          { return apiCall('getAgenzie'); },
   getContrattoDetail:      function(numOrdine)    { return apiCall('getContrattoDetail',      { num_ordine:     numOrdine });    },
   getContrattoCommerciale: function(numContratto) { return apiCall('getContrattoCommerciale', { num_contratto: numContratto }); },
+  getAnomalieByMese:       function(mese)         { return apiCall('getAnomalieByMese', { mese: mese }); },
   getSegnalazioni:         function()             { return apiCall('getSegnalazioni'); },
   getComunicazioni:        function(segId)        { return apiCall('getComunicazioni', { seg_id: segId }); },
   getLotti:                function()             { return apiCall('getLotti'); },
