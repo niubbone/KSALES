@@ -1421,25 +1421,37 @@
           tutti.forEach(function(c) {
             var nc  = String(c.num_contratto || '').trim();
             var key = nc || ('__' + c.num_ordine_wki);
-            if (!gruppi[key]) gruppi[key] = { key: key, num_contratto: nc, ordini: [], tipo: c.tipo, data_firma: c.data_firma, durata_tot: 0, imponibile: 0, stato: c.stato };
+            if (!gruppi[key]) gruppi[key] = { key: key, num_contratto: nc, ordini: [], tipo: c.tipo, data_firma: c.data_firma, durata_tot: 0, imponibile: 0, stato: '' };
             var g = gruppi[key];
             g.ordini.push(c);
             g.imponibile = Math.round((g.imponibile + (c.imponibile || 0)) * 100) / 100;
-            if (String(c.tipo||'').trim() === 'NUOVO') { g.tipo = 'NUOVO'; g.data_firma = c.data_firma; g.stato = c.stato; }
+            if (String(c.tipo||'').trim() === 'NUOVO') { g.tipo = 'NUOVO'; g.data_firma = c.data_firma; }
           });
-          // Durata: gli NT sostituiti da GF (Caso D) non contano.
-          // Criterio: suffisso NT (ultimi 2 cifre) ≤ count GF nell'NC → sostituito.
-          // Così NT01 è escluso con 1 GF, NT02 rimane attivo (triennale parziale).
+          // Durata e stato del gruppo NC calcolati in un'unica passata.
+          // Durata: NT sostituiti da GF (Caso D, suffisso ≤ count_GF) esclusi dalla somma.
+          // Stato: priorità tra ordini con imponibile > 0 (attivi).
+          //   ANOMALIA=4 > ATTIVO=3 > OVER=2 > SALDATO=1
+          //   DISDETTO sovrascrive tutto; ordini cancellati (imp=0) ignorati.
+          var _statoPrio = { ANOMALIA: 4, ATTIVO: 3, OVER: 2, SALDATO: 1 };
           Object.keys(gruppi).forEach(function(k) {
             var g = gruppi[k];
             var countGF = g.ordini.filter(function(o) { return /^GF/i.test(String(o.num_ordine_wki || '')); }).length;
+            var bestStato = '', bestPrio = 0;
             g.durata_tot = g.ordini.reduce(function(sum, o) {
+              // Stato
+              if ((o.imponibile || 0) > 0) {
+                var s = String(o.stato || '').trim().toUpperCase();
+                if (s === 'DISDETTO') { bestStato = 'DISDETTO'; bestPrio = 99; }
+                else { var p = _statoPrio[s] || 0; if (p > bestPrio) { bestStato = o.stato; bestPrio = p; } }
+              }
+              // Durata
               if (countGF > 0 && /^NT/i.test(String(o.num_ordine_wki || ''))) {
                 var sfx = parseInt(String(o.num_ordine_wki).slice(-2), 10);
                 if (!isNaN(sfx) && sfx <= countGF) return sum;
               }
               return sum + (o.durata_mesi || 0);
             }, 0);
+            if (bestStato) g.stato = bestStato;
           });
           return Object.keys(gruppi)
             .map(function(k) { return gruppi[k]; })
