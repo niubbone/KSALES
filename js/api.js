@@ -22,8 +22,11 @@ async function apiCall(action, params) {
   var url = new URL(CONFIG.APPS_SCRIPT_URL);
   url.searchParams.set('action', action);
   if (params) Object.keys(params).forEach(function(k) { url.searchParams.set(k, params[k]); });
-  var res  = await fetch(url.toString(), { redirect: 'follow' });
-  var data = await res.json();
+  var res = await fetch(url.toString(), { redirect: 'follow' });
+  var text = await res.text();
+  var data;
+  try { data = JSON.parse(text); }
+  catch(e) { throw new Error('Risposta GAS non valida (' + action + '): server occupato o timeout. Riprova tra qualche secondo.'); }
   if (data && data.error) throw new Error(data.error);
   return data;
 }
