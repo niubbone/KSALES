@@ -1427,13 +1427,17 @@
             g.imponibile = Math.round((g.imponibile + (c.imponibile || 0)) * 100) / 100;
             if (String(c.tipo||'').trim() === 'NUOVO') { g.tipo = 'NUOVO'; g.data_firma = c.data_firma; }
           });
-          // Durata: per triennali/biennali gli NT sono sostituiti dai GF → non contano.
-          // Se il gruppo ha almeno un GF, si escludono i dvend NT dal computo della durata.
+          // Durata: gli NT sostituiti da GF (Caso D) non contano.
+          // Criterio: suffisso NT (ultimi 2 cifre) ≤ count GF nell'NC → sostituito.
+          // Così NT01 è escluso con 1 GF, NT02 rimane attivo (triennale parziale).
           Object.keys(gruppi).forEach(function(k) {
             var g = gruppi[k];
-            var hasGF = g.ordini.some(function(o) { return /^GF/i.test(String(o.num_ordine_wki || '')); });
+            var countGF = g.ordini.filter(function(o) { return /^GF/i.test(String(o.num_ordine_wki || '')); }).length;
             g.durata_tot = g.ordini.reduce(function(sum, o) {
-              if (hasGF && /^NT/i.test(String(o.num_ordine_wki || ''))) return sum;
+              if (countGF > 0 && /^NT/i.test(String(o.num_ordine_wki || ''))) {
+                var sfx = parseInt(String(o.num_ordine_wki).slice(-2), 10);
+                if (!isNaN(sfx) && sfx <= countGF) return sum;
+              }
               return sum + (o.durata_mesi || 0);
             }, 0);
           });
