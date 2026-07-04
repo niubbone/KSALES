@@ -1425,7 +1425,7 @@
             var g = gruppi[key];
             g.ordini.push(c);
             g.imponibile = Math.round((g.imponibile + (c.imponibile || 0)) * 100) / 100;
-            if (String(c.tipo||'').trim() === 'NUOVO') { g.tipo = 'NUOVO'; g.data_firma = c.data_firma; }
+            if (String(c.tipo||'').trim() === 'NUOVO') { g.tipo = 'NUOVO'; g.data_firma = c.data_firma; g.stato = c.stato; }
           });
           // Durata: gli NT sostituiti da GF (Caso D) non contano.
           // Criterio: suffisso NT (ultimi 2 cifre) ≤ count GF nell'NC → sostituito.
