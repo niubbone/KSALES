@@ -65,5 +65,7 @@ var API = {
   getSegnalazioniChiuse:   function() { return apiCall('getSegnalazioniChiuse'); },
   riapriSegnalazione:      function(segId) { return apiCall('riapriSegnalazione', { seg_id: segId }); },
   clearCache:              function()             { Object.keys(LS_TTL).forEach(function(k) { localStorage.removeItem('ks_' + k); }); },
-  clearServerCache:        function()             { return apiCall('clearCache'); }
+  clearServerCache:        function()             { return apiCall('clearCache'); },
+  getRiconciliazioneResume: function()            { return apiCall('getRiconciliazioneResume'); },
+  getRiconciliazioneTab:   function(tab)          { return apiCall('getRiconciliazioneTab', { tab: tab }); }
 };

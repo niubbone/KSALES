@@ -30,6 +30,7 @@
     <button @click="navTo('clienti')"   :class="vista==='clienti'||vista==='cliente-detail'||vista==='contratto-comm-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Clienti</button>
     <button @click="navTo('segnalazioni')" :class="vista==='segnalazioni'||vista==='segnalazione-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Segnalazioni</button>
     <button @click="navTo('anomalie-mese')" :class="vista==='anomalie-mese' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Mese</button>
+    <button @click="navTo('riconciliazione')" :class="vista==='riconciliazione' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Riconciliazione</button>
     <!-- Ricerca contestuale inline nella navbar -->
     <input x-show="vista==='contratti'" x-model="filtroContratti" type="search"
            placeholder="Cerca contratto, cliente, ordine…"
@@ -1208,6 +1209,123 @@
     </template>
   </section>
 
+  <!-- ── VISTA: RICONCILIAZIONE ─────────────────────────────────── -->
+  <section x-show="!loading && vista==='riconciliazione'" class="p-6">
+
+    <!-- Header e sub-tabs -->
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <div class="flex bg-white rounded shadow-sm border overflow-hidden text-sm">
+        <button @click="ricTabAttiva='firma'"
+                :class="ricTabAttiva==='firma' ? 'bg-[#1c3557] text-white' : 'text-gray-600 hover:bg-gray-50'"
+                class="px-4 py-2 font-medium transition-colors">
+          Firma
+          <span x-show="ricResume && ricResume.RICONCILIAZIONE_FIRMA"
+                :class="ricAnomalieCount('RICONCILIAZIONE_FIRMA')>0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                class="ml-1.5 px-1.5 py-0.5 rounded text-xs font-semibold"
+                x-text="ricResume && ricResume.RICONCILIAZIONE_FIRMA ? ricResume.RICONCILIAZIONE_FIRMA.totale : ''"></span>
+        </button>
+        <button @click="ricTabAttiva='incassi'"
+                :class="ricTabAttiva==='incassi' ? 'bg-[#1c3557] text-white' : 'text-gray-600 hover:bg-gray-50'"
+                class="px-4 py-2 font-medium border-l transition-colors">
+          Incassi
+          <span x-show="ricResume && ricResume.RICONCILIAZIONE_INCASSI"
+                :class="ricAnomalieCount('RICONCILIAZIONE_INCASSI')>0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                class="ml-1.5 px-1.5 py-0.5 rounded text-xs font-semibold"
+                x-text="ricResume && ricResume.RICONCILIAZIONE_INCASSI ? ricResume.RICONCILIAZIONE_INCASSI.totale : ''"></span>
+        </button>
+        <button @click="ricTabAttiva='estrazioni'"
+                :class="ricTabAttiva==='estrazioni' ? 'bg-[#1c3557] text-white' : 'text-gray-600 hover:bg-gray-50'"
+                class="px-4 py-2 font-medium border-l transition-colors">
+          Estrazioni
+          <span x-show="ricResume && ricResume.RICONCILIAZIONE_ESTRAZIONI"
+                :class="ricAnomalieCount('RICONCILIAZIONE_ESTRAZIONI')>0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'"
+                class="ml-1.5 px-1.5 py-0.5 rounded text-xs font-semibold"
+                x-text="ricResume && ricResume.RICONCILIAZIONE_ESTRAZIONI ? ricResume.RICONCILIAZIONE_ESTRAZIONI.totale : ''"></span>
+        </button>
+      </div>
+      <button @click="_loadRiconciliazione()"
+              class="text-xs bg-white border rounded px-3 py-1.5 text-gray-600 hover:bg-gray-50 shadow-sm">
+        ↺ Ricarica dati
+      </button>
+      <span class="text-xs text-gray-400 italic">Per aggiornare: eseguire <code class="bg-gray-100 px-1 rounded">riconciliazioneCompleta()</code> nel GAS editor</span>
+    </div>
+
+    <!-- Errore -->
+    <div x-show="ricErrore" class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm" x-text="ricErrore"></div>
+
+    <!-- Pills stato per il tab attivo -->
+    <div class="flex flex-wrap gap-2 mb-4" x-show="ricCurrentResume">
+      <template x-for="[stato, cnt] in Object.entries(ricCurrentResume ? ricCurrentResume.conteggi : {})" :key="stato">
+        <button @click="ricFiltroStato = (ricFiltroStato === stato ? '' : stato)"
+                :class="[ricStatiColore(stato), ricFiltroStato===stato ? 'ring-2 ring-offset-1 ring-gray-400' : '']"
+                class="px-2.5 py-1 rounded text-xs font-semibold cursor-pointer">
+          <span x-text="stato"></span>
+          <span class="ml-1 opacity-70" x-text="cnt"></span>
+        </button>
+      </template>
+      <button x-show="ricFiltroStato" @click="ricFiltroStato=''"
+              class="px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100">✕ tutti</button>
+    </div>
+
+    <!-- Loader -->
+    <div x-show="ricLoading" class="flex items-center gap-2 text-gray-400 text-sm py-8 justify-center">
+      <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+      Caricamento…
+    </div>
+
+    <!-- Filtro testo -->
+    <div x-show="!ricLoading && ricCurrentRows.length > 0" class="mb-3">
+      <input x-model="ricFiltro" type="search" placeholder="Filtra per NC, cliente, ordine…"
+             class="w-full max-w-sm border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[#1c3557]">
+    </div>
+
+    <!-- Tabella generica (colonne dal backend) -->
+    <div x-show="!ricLoading" class="overflow-x-auto rounded shadow-sm">
+      <table class="min-w-full text-sm bg-white">
+        <thead x-show="ricCurrentHeaders.length > 0">
+          <tr class="bg-[#1c3557] text-white text-left">
+            <template x-for="h in ricCurrentHeaders" :key="h">
+              <th class="px-3 py-2 font-medium whitespace-nowrap" x-text="h"></th>
+            </template>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="(row, i) in ricCurrentRowsFiltrati" :key="i">
+            <tr :class="i%2===0?'bg-white':'bg-gray-50'" class="border-b border-gray-100">
+              <template x-for="h in ricCurrentHeaders" :key="h">
+                <td class="px-3 py-1.5 whitespace-nowrap">
+                  <template x-if="h==='STATO'">
+                    <span :class="ricStatiColore(row[h])"
+                          class="px-2 py-0.5 rounded text-xs font-semibold"
+                          x-text="row[h]"></span>
+                  </template>
+                  <template x-if="h!=='STATO'">
+                    <span class="text-xs"
+                          :class="['NC','NUM_ORDINE','ORDINI_SENZA_FIRMA'].includes(h) ? 'font-mono text-gray-600' : ''"
+                          x-text="row[h] !== '' && row[h] !== null && row[h] !== undefined ? row[h] : '—'"></span>
+                  </template>
+                </td>
+              </template>
+            </tr>
+          </template>
+          <tr x-show="!ricLoading && ricCurrentRowsFiltrati.length === 0">
+            <td :colspan="ricCurrentHeaders.length || 1" class="px-3 py-8 text-center text-gray-400">
+              <span x-show="ricCurrentRows.length === 0">Nessun dato — eseguire riconciliazioneCompleta() nel GAS</span>
+              <span x-show="ricCurrentRows.length > 0">Nessun risultato con il filtro corrente</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p x-show="!ricLoading && ricCurrentRows.length > 0"
+       class="text-xs text-gray-400 mt-2"
+       x-text="ricCurrentRowsFiltrati.length + ' / ' + ricCurrentRows.length + ' righe'"></p>
+
+  </section>
+
   <script src="js/config.js"></script>
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
@@ -1221,6 +1339,16 @@
         subTabComm:              'composizione',
         loading:                 true,
         loadingDetail:           false,
+        // Riconciliazione
+        ricTabAttiva:   'firma',
+        ricResume:      null,
+        ricDatiFirma:   { headers: [], rows: [] },
+        ricDatiIncassi: { headers: [], rows: [] },
+        ricDatiEstr:    { headers: [], rows: [] },
+        ricFiltro:      '',
+        ricFiltroStato: '',
+        ricLoading:     false,
+        ricErrore:      '',
         loadingCommDetail:       false,
         loadingSegn:             false,
         errore:                  '',
@@ -1322,6 +1450,9 @@
               this.meseAnomalie = String(_p.getFullYear()) + ('0' + (_p.getMonth() + 1)).slice(-2);
             }
             this._loadAnomalieByMese();
+          }
+          if (v === 'riconciliazione' && !this.ricResume) {
+            this._loadRiconciliazione();
           }
           this._destroyChart();
           this._destroyChartComm();
@@ -1924,6 +2055,91 @@
             opts.push({ value: yyyymm, label: this.fmtMese(yyyymm) });
           }
           return opts;
+        },
+
+        // ── Riconciliazione ────────────────────────────────────────────────
+
+        async _loadRiconciliazione() {
+          this.ricLoading = true;
+          this.ricErrore  = '';
+          try {
+            var [resume, firma, incassi, estr] = await Promise.all([
+              API.getRiconciliazioneResume(),
+              API.getRiconciliazioneTab('RICONCILIAZIONE_FIRMA'),
+              API.getRiconciliazioneTab('RICONCILIAZIONE_INCASSI'),
+              API.getRiconciliazioneTab('RICONCILIAZIONE_ESTRAZIONI')
+            ]);
+            this.ricResume      = resume;
+            this.ricDatiFirma   = firma;
+            this.ricDatiIncassi = incassi;
+            this.ricDatiEstr    = estr;
+            this.ricFiltro      = '';
+            this.ricFiltroStato = '';
+          } catch(e) {
+            this.ricErrore = String(e.message || e);
+          } finally {
+            this.ricLoading = false;
+          }
+        },
+
+        get ricCurrentDati() {
+          if (this.ricTabAttiva === 'firma')      return this.ricDatiFirma;
+          if (this.ricTabAttiva === 'incassi')    return this.ricDatiIncassi;
+          return this.ricDatiEstr;
+        },
+
+        get ricCurrentHeaders() { return (this.ricCurrentDati && this.ricCurrentDati.headers) || []; },
+        get ricCurrentRows()    { return (this.ricCurrentDati && this.ricCurrentDati.rows)    || []; },
+
+        get ricCurrentResume() {
+          if (!this.ricResume) return null;
+          var k = this.ricTabAttiva === 'firma'      ? 'RICONCILIAZIONE_FIRMA'
+                : this.ricTabAttiva === 'incassi'    ? 'RICONCILIAZIONE_INCASSI'
+                : 'RICONCILIAZIONE_ESTRAZIONI';
+          return this.ricResume[k];
+        },
+
+        get ricCurrentRowsFiltrati() {
+          var rows = this.ricCurrentRows;
+          var hdrs = this.ricCurrentHeaders;
+          var q    = this.ricFiltro.toLowerCase().trim();
+          var sf   = this.ricFiltroStato;
+          return rows.filter(function(r) {
+            if (sf && String(r['STATO']) !== sf) return false;
+            if (!q) return true;
+            return hdrs.some(function(h) {
+              return String(r[h] || '').toLowerCase().includes(q);
+            });
+          });
+        },
+
+        ricAnomalieCount(tabKey) {
+          var res = this.ricResume && this.ricResume[tabKey];
+          if (!res) return 0;
+          var cnt = 0;
+          var ok  = ['OK','SALDATO','IN_ATTESA','DISDETTO'];
+          Object.keys(res.conteggi).forEach(function(s) {
+            if (ok.indexOf(s) < 0) cnt += res.conteggi[s];
+          });
+          return cnt;
+        },
+
+        ricStatiColore(stato) {
+          var m = {
+            'OK':                 'bg-green-100 text-green-700',
+            'SALDATO':            'bg-green-100 text-green-700',
+            'IN_ATTESA':          'bg-yellow-100 text-yellow-800',
+            'NO_KRSV':            'bg-yellow-100 text-yellow-800',
+            'FIRMA_DILAZIONATA':  'bg-yellow-100 text-yellow-800',
+            'FERMO':              'bg-red-100 text-red-700',
+            'INCONGRUENTE':       'bg-red-100 text-red-700',
+            'FIRMA_PARZIALE':     'bg-red-100 text-red-700',
+            'FIRMA_MANCANTE':     'bg-red-100 text-red-700',
+            'MANCANTE':           'bg-red-100 text-red-700',
+            'FERMO+INCONGRUENTE': 'bg-red-200 text-red-900',
+            'DISDETTO':           'bg-gray-100 text-gray-500'
+          };
+          return m[stato] || 'bg-gray-100 text-gray-600';
         },
 
         esitoClass(esito) {
