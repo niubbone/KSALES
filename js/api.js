@@ -67,5 +67,6 @@ var API = {
   clearCache:              function()             { Object.keys(LS_TTL).forEach(function(k) { localStorage.removeItem('ks_' + k); }); },
   clearServerCache:        function()             { return apiCall('clearCache'); },
   getRiconciliazioneResume: function()            { return apiCall('getRiconciliazioneResume'); },
-  getRiconciliazioneTab:   function(tab)          { return apiCall('getRiconciliazioneTab', { tab: tab }); }
+  getRiconciliazioneTab:   function(tab)          { return apiCall('getRiconciliazioneTab', { tab: tab }); },
+  getStatoImport:          function()             { return apiCall('getStatoImport'); }
 };

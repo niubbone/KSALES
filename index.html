@@ -31,6 +31,7 @@
     <button @click="navTo('segnalazioni')" :class="vista==='segnalazioni'||vista==='segnalazione-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Segnalazioni</button>
     <button @click="navTo('anomalie-mese')" :class="vista==='anomalie-mese' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Mese</button>
     <button @click="navTo('riconciliazione')" :class="vista==='riconciliazione' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Riconciliazione</button>
+    <button @click="navTo('stato-import')"   :class="vista==='stato-import'   ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Stato dati</button>
     <!-- Ricerca contestuale inline nella navbar -->
     <input x-show="vista==='contratti'" x-model="filtroContratti" type="search"
            placeholder="Cerca contratto, cliente, ordine…"
@@ -1326,6 +1327,77 @@
 
   </section>
 
+  <!-- ── Stato dati ───────────────────────────────────────────────────────── -->
+  <section x-show="!loading && vista==='stato-import'" class="p-6 max-w-2xl mx-auto">
+
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-lg font-semibold">Stato dati importati</h1>
+      <button @click="_loadStatoImport()"
+              class="text-xs bg-white border rounded px-3 py-1.5 text-gray-600 hover:bg-gray-50 shadow-sm">
+        ↺ Aggiorna
+      </button>
+    </div>
+
+    <div x-show="statoImportErrore" class="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm" x-text="statoImportErrore"></div>
+    <div x-show="statoImportLoading" class="text-sm text-gray-500 italic">Caricamento...</div>
+
+    <template x-if="statoImport && !statoImportLoading">
+      <div>
+        <!-- Rendiconti per linea -->
+        <div class="bg-white rounded shadow-sm mb-6">
+          <div class="px-4 py-3 border-b">
+            <h2 class="text-sm font-semibold text-gray-700">Rendiconti — ultimo mese per linea</h2>
+          </div>
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr>
+                <th class="px-4 py-2 text-left font-medium">Linea</th>
+                <th class="px-4 py-2 text-left font-medium">Ultimo mese importato</th>
+                <th class="px-4 py-2 text-left font-medium">Periodo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="linea in ['X136','G174','X200','S148','F502','X209']" :key="linea">
+                <tr x-show="statoImport.linee[linea]" class="border-t hover:bg-gray-50">
+                  <td class="px-4 py-2.5 font-mono font-semibold text-[#1c3557]" x-text="linea"></td>
+                  <td class="px-4 py-2.5 font-semibold" x-text="statoImport.linee[linea] ? fmtMese(statoImport.linee[linea]) : '—'"></td>
+                  <td class="px-4 py-2.5 text-gray-400 text-xs font-mono" x-text="statoImport.linee[linea] || ''"></td>
+                </tr>
+              </template>
+              <!-- linee non standard -->
+              <template x-for="[linea, mese] in Object.entries(statoImport.linee || {}).filter(([l]) => !['X136','G174','X200','S148','F502','X209'].includes(l)).sort()" :key="linea">
+                <tr class="border-t hover:bg-gray-50">
+                  <td class="px-4 py-2.5 font-mono font-semibold text-gray-500" x-text="linea"></td>
+                  <td class="px-4 py-2.5 font-semibold" x-text="fmtMese(mese)"></td>
+                  <td class="px-4 py-2.5 text-gray-400 text-xs font-mono" x-text="mese"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Estrazioni -->
+        <div class="bg-white rounded shadow-sm">
+          <div class="px-4 py-3 border-b">
+            <h2 class="text-sm font-semibold text-gray-700">Estrazioni — ultima data importata</h2>
+          </div>
+          <div class="px-4 py-4">
+            <template x-if="statoImport.estrazioni">
+              <span class="text-base font-semibold" x-text="statoImport.estrazioni"></span>
+            </template>
+            <template x-if="!statoImport.estrazioni">
+              <span class="text-sm text-gray-400 italic">Nessuna estrazione importata</span>
+            </template>
+          </div>
+        </div>
+
+        <p class="text-xs text-gray-400 mt-4 text-right"
+           x-text="'Aggiornato: ' + (statoImport.aggiornato ? new Date(statoImport.aggiornato).toLocaleString('it-IT') : '—')"></p>
+      </div>
+    </template>
+
+  </section>
+
   <script src="js/config.js"></script>
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
@@ -1349,6 +1421,9 @@
         ricFiltroStato: '',
         ricLoading:     false,
         ricErrore:      '',
+        statoImport:         null,
+        statoImportLoading:  false,
+        statoImportErrore:   '',
         loadingCommDetail:       false,
         loadingSegn:             false,
         errore:                  '',
@@ -1453,6 +1528,9 @@
           }
           if (v === 'riconciliazione' && !this.ricResume) {
             this._loadRiconciliazione();
+          }
+          if (v === 'stato-import') {
+            this._loadStatoImport();
           }
           this._destroyChart();
           this._destroyChartComm();
@@ -2058,6 +2136,18 @@
         },
 
         // ── Riconciliazione ────────────────────────────────────────────────
+
+        async _loadStatoImport() {
+          this.statoImportLoading = true;
+          this.statoImportErrore  = '';
+          try {
+            this.statoImport = await API.getStatoImport();
+          } catch(e) {
+            this.statoImportErrore = String(e.message || e);
+          } finally {
+            this.statoImportLoading = false;
+          }
+        },
 
         async _loadRiconciliazione() {
           this.ricLoading = true;
