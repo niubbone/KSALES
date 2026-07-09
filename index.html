@@ -19,36 +19,39 @@
 <body class="bg-gray-50 text-gray-800 min-h-screen" x-data="app()" x-init="init()" x-cloak>
 
   <!-- Navbar -->
-  <nav class="bg-[#1c3557] text-white px-6 py-3 flex items-center gap-4 shadow sticky top-0 z-10">
-    <span class="font-bold text-base tracking-wide shrink-0">KSales</span>
-    <!-- Back button: visibile solo quando c'è storia di navigazione -->
-    <button x-show="_navHistory.length > 0" @click="goBack()"
-            class="text-sm opacity-70 hover:opacity-100 flex items-center gap-1 border border-white/30 rounded px-2 py-0.5 shrink-0">
-      ← Indietro
-    </button>
-    <button @click="navTo('contratti')" :class="vista==='contratti' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Contratti</button>
-    <button @click="navTo('clienti')"   :class="vista==='clienti'||vista==='cliente-detail'||vista==='contratto-comm-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Clienti</button>
-    <button @click="navTo('segnalazioni')" :class="vista==='segnalazioni'||vista==='segnalazione-detail' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Segnalazioni</button>
-    <button @click="navTo('anomalie-mese')" :class="vista==='anomalie-mese' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Mese</button>
-    <button @click="navTo('riconciliazione')" :class="vista==='riconciliazione' ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Riconciliazione</button>
-    <button @click="navTo('stato-import')"   :class="vista==='stato-import'   ? 'underline' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Stato dati</button>
-    <!-- Ricerca contestuale inline nella navbar -->
-    <input x-show="vista==='contratti'" x-model="filtroContratti" type="search"
-           placeholder="Cerca contratto, cliente, ordine…"
-           class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
-    <input x-show="vista==='clienti'" x-model="filtroClienti" type="search"
-           placeholder="Cerca cliente, città, provincia…"
-           class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
-    <input x-show="vista==='segnalazioni'" x-model="filtroSegnalazioni" type="search"
-           placeholder="Cerca cliente, tipo, ordine…"
-           class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
-    <!-- Pulsanti destra -->
-    <div class="ml-auto flex items-center gap-3 shrink-0">
-      <a href="docs/quickstart.html" target="_blank" title="Quickstart"
-         class="text-xs opacity-60 hover:opacity-100 border border-white/30 rounded px-2 py-0.5">▶ Quick</a>
-      <a href="docs/manuale.html" target="_blank" title="Manuale operativo"
-         class="text-xs opacity-60 hover:opacity-100 border border-white/30 rounded px-2 py-0.5">? Manuale</a>
-      <button @click="refreshAll()" class="text-xs opacity-60 hover:opacity-100" title="Aggiorna dati">↺ Aggiorna</button>
+  <nav class="bg-[#1c3557] text-white shadow sticky top-0 z-10">
+    <!-- Riga 1: logo + navigazione + aggiorna -->
+    <div class="px-6 py-2 flex items-center gap-4 border-b border-white/10">
+      <span class="font-bold text-base tracking-wide shrink-0">KSales</span>
+      <button x-show="_navHistory.length > 0" @click="goBack()"
+              class="text-sm opacity-70 hover:opacity-100 flex items-center gap-1 border border-white/30 rounded px-2 py-0.5 shrink-0">
+        ← Indietro
+      </button>
+      <button @click="navTo('contratti')"    :class="vista==='contratti' ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Contratti</button>
+      <button @click="navTo('clienti')"      :class="vista==='clienti'||vista==='cliente-detail'||vista==='contratto-comm-detail' ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Clienti</button>
+      <button @click="navTo('segnalazioni')" :class="vista==='segnalazioni'||vista==='segnalazione-detail' ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Segnalazioni</button>
+      <button @click="navTo('anomalie-mese')"    :class="vista==='anomalie-mese'    ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Mese</button>
+      <button @click="navTo('riconciliazione')"  :class="vista==='riconciliazione'  ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Riconciliazione</button>
+      <button @click="navTo('stato-import')"     :class="vista==='stato-import'     ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Stato dati</button>
+      <div class="ml-auto shrink-0">
+        <button @click="refreshAll()" class="text-xs opacity-60 hover:opacity-100" title="Svuota cache e ricarica tutti i dati">↺ Aggiorna</button>
+      </div>
+    </div>
+    <!-- Riga 2: ricerca contestuale + docs (visibile solo quando necessario) -->
+    <div x-show="vista==='contratti'||vista==='clienti'||vista==='segnalazioni'" class="px-6 py-1.5 flex items-center gap-3">
+      <input x-show="vista==='contratti'" x-model="filtroContratti" type="search"
+             placeholder="Cerca contratto, cliente, ordine…"
+             class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
+      <input x-show="vista==='clienti'" x-model="filtroClienti" type="search"
+             placeholder="Cerca cliente, città, provincia…"
+             class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
+      <input x-show="vista==='segnalazioni'" x-model="filtroSegnalazioni" type="search"
+             placeholder="Cerca cliente, tipo, ordine…"
+             class="flex-1 min-w-0 bg-white/15 border border-white/30 rounded px-3 py-1 text-sm text-white placeholder-white/60 focus:outline-none focus:bg-white/25">
+      <div class="ml-auto flex items-center gap-3 shrink-0">
+        <a href="docs/quickstart.html" target="_blank" class="text-xs opacity-60 hover:opacity-100 border border-white/30 rounded px-2 py-0.5">▶ Quick</a>
+        <a href="docs/manuale.html"    target="_blank" class="text-xs opacity-60 hover:opacity-100 border border-white/30 rounded px-2 py-0.5">? Manuale</a>
+      </div>
     </div>
   </nav>
 

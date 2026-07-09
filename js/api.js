@@ -1,6 +1,10 @@
 var LS_TTL = {
-  getContratti: 15 * 60 * 1000,
-  getClienti:   15 * 60 * 1000
+  getContratti:   15 * 60 * 1000,
+  getClienti:     15 * 60 * 1000,
+  getRicResume:   30 * 60 * 1000,
+  getRicFirma:    30 * 60 * 1000,
+  getRicIncassi:  30 * 60 * 1000,
+  getRicEstr:     30 * 60 * 1000
 };
 
 function _lsGet(key) {
@@ -31,14 +35,15 @@ async function apiCall(action, params) {
   return data;
 }
 
-async function cachedApiCall(action, params) {
-  var ttl = LS_TTL[action];
+async function cachedApiCall(action, params, cacheKey) {
+  var key = cacheKey || action;
+  var ttl = LS_TTL[key];
   if (ttl) {
-    var cached = _lsGet(action);
+    var cached = _lsGet(key);
     if (cached) return cached;
   }
   var data = await apiCall(action, params);
-  if (ttl) _lsPut(action, data, ttl);
+  if (ttl) _lsPut(key, data, ttl);
   return data;
 }
 
@@ -66,7 +71,14 @@ var API = {
   riapriSegnalazione:      function(segId) { return apiCall('riapriSegnalazione', { seg_id: segId }); },
   clearCache:              function()             { Object.keys(LS_TTL).forEach(function(k) { localStorage.removeItem('ks_' + k); }); },
   clearServerCache:        function()             { return apiCall('clearCache'); },
-  getRiconciliazioneResume: function()            { return apiCall('getRiconciliazioneResume'); },
-  getRiconciliazioneTab:   function(tab)          { return apiCall('getRiconciliazioneTab', { tab: tab }); },
-  getStatoImport:          function()             { return apiCall('getStatoImport'); }
+  getRiconciliazioneResume: function()    { return cachedApiCall('getRiconciliazioneResume', null, 'getRicResume'); },
+  getRiconciliazioneTab:   function(tab) {
+    var key = tab === 'RICONCILIAZIONE_FIRMA'      ? 'getRicFirma'
+            : tab === 'RICONCILIAZIONE_INCASSI'    ? 'getRicIncassi'
+            : 'getRicEstr';
+    return cachedApiCall('getRiconciliazioneTab', { tab: tab }, key);
+  },
+  getStatoImport:          function()             { return apiCall('getStatoImport'); },
+  getPosizioni:            function()             { return apiCall('getPosizioni'); },
+  getSaldiManuali:         function()             { return apiCall('getSaldiManuali'); }
 };
