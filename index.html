@@ -32,7 +32,7 @@
       <button @click="navTo('segnalazioni')" :class="vista==='segnalazioni'||vista==='segnalazione-detail' ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Segnalazioni</button>
       <button @click="navTo('anomalie-mese')"    :class="vista==='anomalie-mese'    ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Mese</button>
       <button @click="navTo('riconciliazione')"  :class="vista==='riconciliazione'  ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Riconciliazione</button>
-      <button @click="navTo('stato-import')"     :class="vista==='stato-import'     ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Stato dati</button>
+      <button @click="navTo('stato-import')"     :class="vista==='stato-import'     ? 'underline font-semibold' : 'opacity-60 hover:opacity-100'" class="text-sm shrink-0">Import</button>
       <div class="ml-auto shrink-0">
         <button @click="refreshAll()" class="text-xs opacity-60 hover:opacity-100" title="Svuota cache e ricarica tutti i dati">↺ Aggiorna</button>
       </div>
@@ -1330,11 +1330,11 @@
 
   </section>
 
-  <!-- ── Stato dati ───────────────────────────────────────────────────────── -->
+  <!-- ── Import ───────────────────────────────────────────────────────────── -->
   <section x-show="!loading && vista==='stato-import'" class="p-6 max-w-2xl mx-auto">
 
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-lg font-semibold">Stato dati importati</h1>
+      <h1 class="text-lg font-semibold">Import</h1>
       <button @click="_loadStatoImport()"
               class="text-xs bg-white border rounded px-3 py-1.5 text-gray-600 hover:bg-gray-50 shadow-sm">
         ↺ Aggiorna
@@ -1399,6 +1399,48 @@
       </div>
     </template>
 
+    <!-- Azioni import -->
+    <div class="mt-8 space-y-4">
+      <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Azioni</h2>
+
+      <!-- Upload estrazione BudAnal -->
+      <div class="bg-white rounded shadow-sm p-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-1">Importa Estrazione BudAnal</h3>
+        <p class="text-xs text-gray-500 mb-3">Seleziona il file XLS ricevuto da WKI. Il file viene archiviato in Drive (se configurato) e importato nel foglio ESTRAZIONI.</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <input type="file" accept=".xls,.xlsx" x-ref="estrFile"
+                 @change="uploadEstrFile = $event.target.files[0]"
+                 class="text-sm text-gray-600 file:mr-2 file:py-1 file:px-3 file:rounded file:border file:border-gray-300 file:text-xs file:bg-white file:text-gray-700 hover:file:bg-gray-50">
+          <button @click="doUploadEstrazione()"
+                  :disabled="!uploadEstrFile || uploadEstrLoading"
+                  class="text-sm bg-[#1c3557] text-white px-4 py-1.5 rounded hover:bg-[#254a77] disabled:opacity-40 disabled:cursor-not-allowed shrink-0">
+            <span x-show="!uploadEstrLoading">Carica e Importa</span>
+            <span x-show="uploadEstrLoading">Importazione in corso…</span>
+          </button>
+        </div>
+        <div x-show="uploadEstrErrore" class="mt-2 text-xs text-red-600" x-text="uploadEstrErrore"></div>
+        <div x-show="uploadEstrResult" class="mt-2 text-xs text-green-700 bg-green-50 rounded px-3 py-2">
+          <span x-text="uploadEstrResult && (uploadEstrResult.inserted + ' righe inserite, ' + uploadEstrResult.skippedDuplicates + ' già presenti' + (uploadEstrResult.mese_estrazione ? ' — mese ' + uploadEstrResult.mese_estrazione : '') + (uploadEstrResult.archiviato ? ' — archiviato in Drive ✓' : ''))"></span>
+        </div>
+      </div>
+
+      <!-- Riesegui Riconciliazione -->
+      <div class="bg-white rounded shadow-sm p-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-1">Riesegui Riconciliazione</h3>
+        <p class="text-xs text-gray-500 mb-3">Ricalcola firma, incassi ed estrazioni. Equivale a eseguire <code class="bg-gray-100 px-1 rounded">riconciliazioneCompleta()</code> dal GAS editor. Circa 60 secondi.</p>
+        <button @click="doAvviaRiconciliazione()"
+                :disabled="avviaRicLoading"
+                class="text-sm bg-[#1c3557] text-white px-4 py-1.5 rounded hover:bg-[#254a77] disabled:opacity-40 disabled:cursor-not-allowed">
+          <span x-show="!avviaRicLoading">Avvia Riconciliazione</span>
+          <span x-show="avviaRicLoading">Esecuzione in corso… (~60s)</span>
+        </button>
+        <div x-show="avviaRicErrore" class="mt-2 text-xs text-red-600" x-text="avviaRicErrore"></div>
+        <div x-show="avviaRicResult" class="mt-2 text-xs text-green-700 bg-green-50 rounded px-3 py-2">
+          Riconciliazione completata — i dati nel tab Riconciliazione sono aggiornati.
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <script src="js/config.js"></script>
@@ -1427,6 +1469,13 @@
         statoImport:         null,
         statoImportLoading:  false,
         statoImportErrore:   '',
+        uploadEstrFile:      null,
+        uploadEstrLoading:   false,
+        uploadEstrResult:    null,
+        uploadEstrErrore:    '',
+        avviaRicLoading:     false,
+        avviaRicResult:      null,
+        avviaRicErrore:      '',
         loadingCommDetail:       false,
         loadingSegn:             false,
         errore:                  '',
@@ -2149,6 +2198,47 @@
             this.statoImportErrore = String(e.message || e);
           } finally {
             this.statoImportLoading = false;
+          }
+        },
+
+        async doUploadEstrazione() {
+          if (!this.uploadEstrFile) return;
+          this.uploadEstrLoading = true;
+          this.uploadEstrResult  = null;
+          this.uploadEstrErrore  = '';
+          try {
+            var file = this.uploadEstrFile;
+            var base64 = await new Promise(function(resolve, reject) {
+              var reader = new FileReader();
+              reader.onload  = function(e) { resolve(e.target.result.split(',')[1]); };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            var res = await API.uploadEstrazione(file.name, base64);
+            this.uploadEstrResult = res;
+            this._loadStatoImport();
+          } catch(e) {
+            this.uploadEstrErrore = String(e.message || e);
+          } finally {
+            this.uploadEstrLoading = false;
+          }
+        },
+
+        async doAvviaRiconciliazione() {
+          this.avviaRicLoading = true;
+          this.avviaRicResult  = null;
+          this.avviaRicErrore  = '';
+          try {
+            await API.avviaRiconciliazione();
+            // Invalida cache riconciliazione in localStorage
+            ['getRicResume','getRicFirma','getRicIncassi','getRicEstr'].forEach(function(k) {
+              localStorage.removeItem('ks_' + k);
+            });
+            this.avviaRicResult = true;
+          } catch(e) {
+            this.avviaRicErrore = String(e.message || e);
+          } finally {
+            this.avviaRicLoading = false;
           }
         },
 

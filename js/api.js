@@ -22,6 +22,21 @@ function _lsPut(key, data, ttlMs) {
   catch(e) {}
 }
 
+async function apiPost(body) {
+  var res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method: 'POST',
+    redirect: 'follow',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ token: 'ksales2026' }, body))
+  });
+  var text = await res.text();
+  var data;
+  try { data = JSON.parse(text); }
+  catch(e) { throw new Error('Risposta GAS non valida. Riprova tra qualche secondo.'); }
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+
 async function apiCall(action, params) {
   var url = new URL(CONFIG.APPS_SCRIPT_URL);
   url.searchParams.set('action', action);
@@ -80,5 +95,9 @@ var API = {
   },
   getStatoImport:          function()             { return apiCall('getStatoImport'); },
   getPosizioni:            function()             { return apiCall('getPosizioni'); },
-  getSaldiManuali:         function()             { return apiCall('getSaldiManuali'); }
+  getSaldiManuali:         function()             { return apiCall('getSaldiManuali'); },
+  avviaRiconciliazione:    function()             { return apiCall('avviaRiconciliazione'); },
+  uploadEstrazione:        function(fileName, base64Content) {
+    return apiPost({ action: 'importEstrazioneUpload', fileName: fileName, fileContent: base64Content });
+  }
 };
