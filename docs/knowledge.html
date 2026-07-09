@@ -46,7 +46,7 @@
 <h1>KS — Knowledge Base<br><small style="font-size:.5em;font-weight:400;color:#555">Riferimento AI/Sviluppatore — trial &amp; error, bug storici, strutture non ancora dominate</small></h1>
 
 <p class="version">
-  <strong>Aggiornato:</strong> 2026-06-14 · GAS @108 &nbsp;|&nbsp;
+  <strong>Aggiornato:</strong> 2026-07-09 · GAS @157 &nbsp;|&nbsp;
   <strong>Scopo:</strong> questo file deve essere letto all'inizio di ogni sessione di lavoro sul codice KS e aggiornato dopo ogni sessione con nuovi bug, fix, e osservazioni.<br>
   <strong>Struttura:</strong> <a href="manuale.html">Manuale</a> = come funziona · <a href="quickstart.html">Quickstart</a> = cosa eseguire · questo file = cosa abbiamo imparato nel tempo.
 </p>
@@ -180,6 +180,64 @@ _debugRendicontiCliente()
 
 <hr>
 
+<!-- ──────────────────────────────────────────────────────────────────────── -->
+<h3>BUG-C02 — data_estrazione "01/01/1970" nel frontend Import <span class="badge badge-closed">RISOLTO @156</span></h3>
+
+<div class="bug-closed">
+  <strong>Fix:</strong> in <code>apiGetStatoImport</code> (riconciliazione.gs), leggere <code>data_estrazione</code> come stringa YYYYMM e fare string comparison invece di costruire un oggetto <code>Date</code>.
+</div>
+
+<h4>Causa</h4>
+<p>Il foglio ESTRAZIONI salva <code>data_estrazione</code> come numero intero <code>202507</code> (non come stringa). Il codice originale faceva <code>new Date(202507)</code> che in JavaScript interpreta il valore come millisecondi dall'epoch Unix → 01/01/1970.</p>
+
+<h4>Fix applicato</h4>
+<pre><code>// Prima (sbagliato):
+var maxMese = new Date(0);
+estData.forEach(r => { var d = new Date(r[0]); if (d > maxMese) maxMese = d; });
+
+// Dopo (corretto):
+var maxMese = '';
+estData.forEach(r => {
+  var val = String(r[0] || '').trim().replace(/\D/g, '');
+  if (val.length === 6 && val > maxMese) maxMese = val;
+});
+if (maxMese) result.estrazioni = maxMese.slice(4,6) + '/' + maxMese.slice(0,4);
+</code></pre>
+
+<h4>Regola generale</h4>
+<p>Qualsiasi campo YYYYMM letto da Google Sheets può arrivare come numero intero (es. <code>202507</code>). Non costruire mai <code>new Date(val)</code> su questi valori — convertire sempre in stringa e usare confronto lessicografico.</p>
+
+<!-- ──────────────────────────────────────────────────────────────────────── -->
+<h3>BUG-C03 — clasp push non aggiornava il web app live <span class="badge badge-closed">RISOLTO @156</span></h3>
+
+<div class="bug-closed">
+  <strong>Fix:</strong> dopo ogni <code>clasp push</code>, eseguire anche <code>clasp deploy --deploymentId &lt;ID&gt;</code>. Il deployment ID da usare è sempre lo stesso (non crearne nuovi).
+</div>
+
+<h4>Causa</h4>
+<p>Il web app GAS di KSALES usa un deployment <em>versioned</em>, non HEAD. <code>clasp push</code> aggiorna il sorgente (HEAD) ma il deployment versioned continua a servire la versione precedente. Le funzioni testate dal GAS editor usano HEAD (quindi sembrano funzionare), ma le chiamate API del frontend usano il deployment versioned.</p>
+<p><strong>Scoperto il 09/07/2026:</strong> il fix per il BUG-C02 era corretto ma non prendeva effetto perché il web app girava ancora su @155. Dopo <code>clasp deploy</code> → @156 il problema era risolto.</p>
+
+<!-- ──────────────────────────────────────────────────────────────────────── -->
+<h3>BUG-C04 — FIRMA_DILAZIONATA: 8/10 falsi positivi <span class="badge badge-closed">RISOLTO @157</span></h3>
+
+<div class="bug-closed">
+  <strong>Fix:</strong> eliminata la categoria FIRMA_DILAZIONATA. <code>riconciliaFirma</code> ora controlla il <strong>totale cumulato</strong> firma ricevuta vs firma attesa. Se il totale algebrico torna, è OK indipendentemente da quante tranche sono arrivate.
+</div>
+
+<h4>Causa dei falsi positivi</h4>
+<p>La vecchia logica marcava come DILAZIONATA ogni NC dove la firma non era arrivata nel mese del dvend. Tuttavia i contratti biennali/triennali ricevono la firma in tranche su più mesi, e gli storni NT/GF si compensano algebricamente. L'analisi su 10 casi DILAZIONATA ha mostrato 8 falsi positivi (importo totale corretto, solo timing diverso).</p>
+
+<h4>Nuova formula firma attesa</h4>
+<pre><code>firmaAttesa = Σ (imponibile_i × aliq_attesa_i / 100)
+              per tutte le righe YASV/YPFA del NC group
+// Gli storni hanno imponibile negativo → si cancellano automaticamente</code></pre>
+
+<h4>Stati riconciliazione firma post-fix</h4>
+<p><code>OK | ANOMALIA | FIRMA_MANCANTE | SENZA_ALIQ | VECCHIO_MANDATO</code> — rimosso FIRMA_DILAZIONATA.</p>
+
+<hr>
+
 <h2 id="strutture-sap">3. Strutture SAP non ancora dominate</h2>
 
 <h3>3.1 — doc_vend vs billing_doc in KRSV (BUG-01 correlato)</h3>
@@ -226,6 +284,41 @@ _debugRendicontiCliente()
 
 <div class="unknown">
   <strong>Semantica duplice non risolta:</strong> il campo <code>n_doc</code> (colonna r[18]) viene usato dal backfill (Strategia 1) come "scheduling agreement" condiviso tra più ordini per aggregarli. Tuttavia lo stesso campo per le righe KRSV potrebbe contenere il billing doc. Non è chiaro se il campo abbia semantica diversa a seconda del <code>tp_remun</code>.
+</div>
+
+<h3>3.6 — KRIR e KMDE: provvigioni reali ignorate nel calcolo <span class="badge badge-open">DA IMPLEMENTARE</span></h3>
+
+<div class="unknown">
+  <strong>Gap identificato (analisi Opus, luglio 2026):</strong> i codici <code>KRIR</code> (+1% RID, addebito diretto bancario) e <code>KMDE</code> (+1% maneggio denaro) sono provvigioni reali già salvate in RENDICONTI ma non incluse nella formula <code>provvRicevuta</code>. Risultato: ogni contratto X200 con pagamento RID appare come MULTI_ANNO o VERIFICA quando dovrebbe essere OK.
+</div>
+
+<p><strong>Fix:</strong> aggiungere KRIR e KMDE alla lista tp_remun inclusi in <code>provvRicevuta</code> in <code>riconciliaIncassi</code> e/o <code>generaCS</code>. I dati sono già presenti — basta includere questi codici nel calcolo.</p>
+<p><strong>Impatto atteso:</strong> potrebbero correggere decine di falsi positivi MULTI_ANNO/VERIFICA per contratti X200 con pagamento RID.</p>
+
+<h3>3.7 — cpag: condizione di pagamento — non usata ma potenzialmente utile</h3>
+
+<div class="unknown">
+  <strong>Non sfruttato:</strong> il campo <code>cpag</code> (r[17]) identifica la condizione di pagamento SAP: <code>ZR*</code> = RID (addebito diretto), <code>ZK*</code> = pagamento differito, <code>Z000</code> = immediato. Un contratto con <code>cpag = ZR*</code> dovrebbe sempre avere almeno una riga KRIR — se manca, è un'anomalia segnalabile a WKI.
+</div>
+
+<p>Implementazione possibile: aggiungere un check nella riconciliazione incassi — <code>cpag starts with ZR</code> AND <code>nessuna riga KRIR per questo dvend</code> → anomalia KRIR_MANCANTE.</p>
+
+<h3>3.8 — tipo_doc NM e C7: semantica non verificata</h3>
+
+<div class="unknown">
+  <strong>Non chiarito:</strong> <code>tipo_doc</code> (r[19]) può essere N (normale), V (storno), DF (liquidazione periodica), NM (presumibilmente Nachtragsmandat = contratto integrativo), C7 (correzione parziale). NM potrebbe identificare ordini satellite firmati dopo il contratto principale — potenziale aiuto per il backfill aggregazione. Non verificato su dati reali.
+</div>
+
+<h3>3.9 — tipo_codice SEZ.3: T000/T001/T002 non usato</h3>
+
+<div class="unknown">
+  <strong>Estratto ma ignorato:</strong> la pipeline Python estrae <code>tipo_codice</code> (es. T000, T001, T002) e <code>tipo_desc</code> dai "Totali Ordine" della SEZ.3 PDF. Probabilmente T000 = annuale, T001 = biennale, T002 = triennale (o in alternativa anno 1/2/3 del triennale). Questa è una fonte più autorevole e machine-readable di <code>desc_materiale</code> per <code>_inferTipoEDurata</code> — ma attualmente non viene salvata né usata nel GAS.
+</div>
+
+<h3>3.10 — SEZ.1 PDF: totali di controllo non estratti</h3>
+
+<div class="unknown">
+  <strong>Opportunità:</strong> la SEZ.1 del PDF rendiconto contiene i totali provvigioni del mese per tipo (firma/incasso/storno). Confrontarli con la somma delle righe CSV importate darebbe una rete di sicurezza sull'integrità dell'import: se la somma diverge di più di €0.50, il parser ha probabilmente scartato righe significative. Non implementato nel parser Python attuale.
 </div>
 
 <hr>

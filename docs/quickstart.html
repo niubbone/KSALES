@@ -29,6 +29,10 @@
   .badge-warn { background:#ffedd5;color:#c2410c;padding:1px 8px;border-radius:4px;font-size:.82em }
   .phase { border: 1px solid #e2e8f0; border-radius: 6px; padding: .8rem 1rem; margin: .8rem 0; }
   .phase-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; color: #1c3557; letter-spacing: .05em; margin-bottom: .4rem; }
+  .src-tag { display: inline-block; font-size: .72em; font-weight: 700; border-radius: 3px; padding: 1px 6px; margin-right: 4px; vertical-align: middle; }
+  .src-py  { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
+  .src-web { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+  .src-gas { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 </style>
 </head>
 <body>
@@ -36,15 +40,21 @@
 <h1>KS — Quickstart operativo</h1>
 <p style="color:#555;font-size:.9em">Guida rapida per i flussi mensili. Per la documentazione completa vedere <a href="manuale.html">Manuale</a>.</p>
 
+<div style="margin:.5rem 0 1.2rem">
+  <span class="src-tag src-py">Python</span> pipeline locale &nbsp;
+  <span class="src-tag src-web">Frontend</span> interfaccia web &nbsp;
+  <span class="src-tag src-gas">GAS</span> Apps Script (solo operazioni bulk)
+</div>
+
 <div class="toc">
   <strong>Contenuto</strong>
   <ol>
-    <li><a href="#import-mensile">Import mensile completo</a></li>
-    <li><a href="#timeout">Gestione timeout</a></li>
-    <li><a href="#solo-rendiconti">Solo rendiconti (aggiornamento rapido)</a></li>
-    <li><a href="#solo-estrazioni">Solo estrazioni (aggiornamento sub-agenti)</a></li>
-    <li><a href="#riconciliazione">Riconciliazione e segnalazioni</a></li>
-    <li><a href="#frontend">Aggiornamento frontend</a></li>
+    <li><a href="#flusso-mensile">Flusso mensile standard</a></li>
+    <li><a href="#rendiconti">Import rendiconti (Python + frontend)</a></li>
+    <li><a href="#estrazione">Import estrazione BudAnal (frontend)</a></li>
+    <li><a href="#riconciliazione">Avvia riconciliazione</a></li>
+    <li><a href="#segnalazioni">Riconciliazione e segnalazioni (GAS)</a></li>
+    <li><a href="#frontend">Cache e aggiornamento frontend</a></li>
     <li><a href="#anomalie">Checklist anomalie frequenti</a></li>
     <li><a href="#setup">Setup iniziale (una tantum)</a></li>
   </ol>
@@ -52,128 +62,138 @@
 
 <hr>
 
-<h2 id="import-mensile">1. Import mensile completo</h2>
-<p>Sequenza standard da eseguire ogni mese dopo aver ricevuto i file da WKI.</p>
+<h2 id="flusso-mensile">1. Flusso mensile standard</h2>
+<p>Ogni mese, dopo aver ricevuto i file da WKI:</p>
 
-<h3>Passo A — Carica i file in Google Drive</h3>
+<table>
+  <thead><tr><th>Passo</th><th>Fonte</th><th>Azione</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1. Import rendiconti PDF+CSV</td>
+      <td><span class="src-tag src-py">Python</span></td>
+      <td>Scarica PDF e CSV in cartella locale → <code>python import_rendiconti.py</code></td>
+    </tr>
+    <tr>
+      <td>2. Import CSV rendiconti aggiuntivi (opz.)</td>
+      <td><span class="src-tag src-web">Frontend</span></td>
+      <td>Import → Carica CSV rendiconto (dml*.csv, dips148*.csv)</td>
+    </tr>
+    <tr>
+      <td>3. Import estrazione BudAnal</td>
+      <td><span class="src-tag src-web">Frontend</span></td>
+      <td>Import → Carica file BudAnal → seleziona .xls SAP</td>
+    </tr>
+    <tr>
+      <td>4. Avvia Riconciliazione</td>
+      <td><span class="src-tag src-web">Frontend</span></td>
+      <td>Import → Avvia Riconciliazione (ricalcola FIRMA/INCASSI/ESTRAZIONI)</td>
+    </tr>
+    <tr>
+      <td>5. Popola e genera CS (se servono nuovi contratti)</td>
+      <td><span class="src-tag src-gas">GAS</span></td>
+      <td><code>flusso_2_popola</code> → <code>flusso_3_genera</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note">I passi 2–4 sono ora eseguibili direttamente dal frontend senza aprire Apps Script. Il passo Python (1) è necessario per l'import dei PDF (mappatura NT→GF da SEZ.3). Per i soli CSV, si può usare il frontend (passo 2) senza aprire il terminale.</div>
+
+<hr>
+
+<h2 id="rendiconti">2. Import rendiconti</h2>
+
+<h3>Percorso A — Pipeline Python (PDF + CSV, raccomandato per import mensile completo)</h3>
 <ol>
-  <li>Caricare i CSV rendiconti (<code>dml*.csv</code>) nella cartella Drive rendiconti</li>
-  <li>Caricare i <code>dips148*.csv</code> nella cartella Drive S148</li>
-  <li>Caricare i <code>ripf502*.xlsx</code> nella cartella Drive F502</li>
-  <li>Caricare i file BudAnal (<code>*.xlsx</code> estrazioni) nella cartella Drive estrazioni (se disponibili)</li>
+  <li>Scarica i file WKI ricevuti via email nella cartella locale rendiconti:<br>
+    <code>rendiconti/YYYY/MM/LINEA/dml*.pdf</code> e <code>dml*.csv</code><br>
+    <code>rendiconti/YYYY/MM/S148/dips148*.csv</code>
+  </li>
+  <li>
+    Apri un terminale nella cartella pipeline ed esegui:
+    <pre><code>python import_rendiconti.py</code></pre>
+    <small>Flag: <code>--dry-run</code> (simula senza inviare), <code>--reset</code> (riprocessa tutto), <code>--pdf-only</code> (solo PDF/SEZ.3), <code>--csv-only</code> (solo CSV)</small>
+  </li>
 </ol>
 
-<h3>Passo B — Esegui (Apps Script → Esegui)</h3>
+<div class="tip">La pipeline è idempotente: ogni file viene tracciato in <code>state/processed.json</code> e non viene inviato due volte. Per forzare il re-import di un file specifico, eliminalo dal JSON o usa <code>--reset</code>.</div>
 
-<div class="phase">
-  <div class="phase-label">Opzione rapida — mese normale</div>
-  <pre><code>flusso_completo</code></pre>
-  <small>Esegue le fasi 1+2+3 in sequenza. Se va in timeout su FASE1, usare le fasi singole (vedi sotto).</small>
-</div>
-
-<details style="margin:.6rem 0">
-  <summary style="cursor:pointer;color:#1c3557;font-size:.9em">▶ Fasi singole (fallback se timeout)</summary>
-  <div style="margin-top:.6rem">
-    <div class="phase">
-      <div class="phase-label">Fase 1</div>
-      <pre><code>flusso_1_import</code></pre>
-      <small>Importa S148 + F502 + rendiconti DML + estrazioni BudAnal dalla cartella Drive.</small>
-    </div>
-    <div class="phase">
-      <div class="phase-label">Fase 2</div>
-      <pre><code>flusso_2_popola</code></pre>
-      <small>Aggiunge nuovi clienti e contratti, backfill date firma e num_contratto, aggiorna stati.</small>
-    </div>
-    <div class="phase">
-      <div class="phase-label">Fase 3</div>
-      <pre><code>flusso_3_genera</code></pre>
-      <small>Rigenera tutti i tab ORD e PAG nel foglio CS, svuota la cache GAS.</small>
-    </div>
-  </div>
-</details>
-
-<div class="tip">Ogni fase è <strong>idempotente</strong>: se va in timeout, rilanciarla — ricomincia senza duplicare i dati. Vedi <a href="#timeout">§2</a> per la procedura di ripristino.</div>
-
-<h3>Passo C — Aggiorna il frontend</h3>
-<pre><code>Frontend → "Aggiorna tutto"   → svuota localStorage e ricarica i dati da GAS</code></pre>
-
-<hr>
-
-<h2 id="timeout">2. Gestione timeout</h2>
-<p>Apps Script ha un limite di 6 minuti per esecuzione. Se una fase va in timeout:</p>
+<h3>Percorso B — Upload dal frontend (CSV singoli, senza aprire il terminale)</h3>
+<p>Utile quando hai pochi file da caricare o vuoi evitare il terminale per i soli CSV.</p>
 <ol>
-  <li>Notare quale fase si è bloccata (FASE1 / FASE2 / FASE3 nel Logger)</li>
-  <li>Rilanciarla direttamente — ogni operazione è idempotente, non crea duplicati</li>
-  <li>Se FASE1 importa molti file, usare <code>_importaAnnoSlice</code> per importare i rendiconti a blocchi</li>
+  <li>Frontend → sezione <strong>Import</strong></li>
+  <li>Click su <strong>Carica CSV rendiconto</strong> → seleziona uno o più file <code>dml*.csv</code> o <code>dips148*.csv</code></li>
+  <li>Il frontend rileva automaticamente il tipo dal nome file (S148 vs standard) e invia a GAS</li>
 </ol>
-<div class="note">Le fasi 2 e 3 sono solitamente veloci (&lt;2 min). Se va in timeout la Fase 1 sull'import rendiconti, è normale — rilanciare o usare lo slice.</div>
+<div class="warn">Il percorso B <strong>non processa i PDF</strong>: la mappatura NT→GF (SEZ.3) viene saltata. Usarlo solo se non ci sono nuovi contratti triennali o se il percorso A è già stato eseguito per i PDF.</div>
+
+<h3>Import F502 (xlsx mensili)</h3>
+<p>F502 usa file Excel con due sheet (Produzione + Incassi). Import manuale da GAS:</p>
+<pre><code>_importF502Folder()   → importa tutti i ripf502*.xlsx dalla cartella Drive F502</code></pre>
 
 <hr>
 
-<h2 id="solo-rendiconti">3. Solo rendiconti (aggiornamento rapido)</h2>
-<p>Quando hai solo nuovi rendiconti da importare e non ci sono nuovi contratti o estrazioni.</p>
-<p>Puoi eseguire tutte e 3 le fasi normalmente (sono idempotenti), oppure usare le funzioni singole:</p>
-<pre><code>_importS148Folder          → importa nuovi dips148*.csv
-importaRendiconti2026      → importa nuovi dml*.csv
-_populateContratti         → aggiunge contratti eventualmente nuovi
-_backfillNumContratto      → ricalcola aggregazione (idempotente)
-_aggiornaStatiContratti    → aggiorna stati
-_generaCS                  → rigenera CS
-clearAllCache              → svuota cache GAS
-</code></pre>
-<pre><code>Frontend → "Aggiorna tutto"</code></pre>
+<h2 id="estrazione">3. Import estrazione BudAnal</h2>
+<p>L'estrazione SAP (portafoglio contratti attivi) arriva come file <code>.xls</code> con encoding HTML/MIME SAP.</p>
+<ol>
+  <li>Frontend → sezione <strong>Import</strong></li>
+  <li>Click su <strong>Carica file BudAnal</strong> → seleziona il file <code>*.xls</code></li>
+  <li>Il file viene inviato in base64 a GAS → parsato → inserito in ESTRAZIONI (con dedup)</li>
+  <li>Se configurato <code>ESTRAZIONI_FOLDER_ID</code>, il file viene archiviato anche in Drive con timestamp</li>
+</ol>
+<div class="tip">La dedup key è: <code>data_estrazione | linea | cod_cliente | desc_materiale</code>. Ricaricare lo stesso file non crea duplicati.</div>
 
 <hr>
 
-<h2 id="solo-estrazioni">4. Solo estrazioni (aggiornamento sub-agenti)</h2>
-<p>Quando hai aggiornamenti da BudAnal ma non nuovi rendiconti.</p>
-<pre><code>importEstrazioniFolder
-_backfillSubAgenti
-_sincronizzaAgenzieDaClienti
-_generaCS
-clearAllCache
-</code></pre>
-<pre><code>Frontend → "Aggiorna tutto"</code></pre>
+<h2 id="riconciliazione">4. Avvia Riconciliazione</h2>
+<p>Ricalcola i tre tab di riconciliazione (FIRMA, INCASSI, ESTRAZIONI) nel foglio KS-DB e svuota la cache frontend.</p>
+<ol>
+  <li>Frontend → sezione <strong>Import</strong></li>
+  <li>Click su <strong>Avvia Riconciliazione</strong></li>
+  <li>Attendi il completamento (può richiedere 30–90 secondi su dataset grandi)</li>
+</ol>
+
+<div class="note"><strong>Logica firma (luglio 2026):</strong> il check è sul totale cumulato firma ricevuta vs firma attesa (imponibile × aliq da PRODOTTI). Non esiste più la categoria FIRMA_DILAZIONATA: se il totale torna algebricamente è OK, indipendentemente da quante tranche sono arrivate.<br>
+<strong>Stati riconciliazione firma:</strong> OK | ANOMALIA | FIRMA_MANCANTE | SENZA_ALIQ | VECCHIO_MANDATO</div>
 
 <hr>
 
-<h2 id="riconciliazione">5. Riconciliazione e segnalazioni</h2>
+<h2 id="segnalazioni">5. Riconciliazione CS e segnalazioni (GAS)</h2>
 
-<h3>Importa segnalazioni da CS</h3>
-<pre><code>1. _generaCS                    → assicurati che il CS sia aggiornato
-2. _importaProblemiDaCS         → importa contratti con saldo aperto in SEGNALAZIONI
-3. _formatSegnalazioni          → applica formattazione e colori (solo se i colori mancano)
+<h3>Rigenera foglio CS e importa anomalie</h3>
+<pre><code>1. flusso_2_popola          → aggiunge nuovi clienti/contratti, backfill, aggiorna stati
+2. flusso_3_genera          → rigenera tab ORD e PAG nel foglio CS
+3. _importaProblemiDaCS     → importa contratti con saldo aperto in SEGNALAZIONI
+4. _formatSegnalazioni      → applica formattazione e colori (solo se mancano)
 </code></pre>
 
 <h3>Genera lettera di contestazione WKI</h3>
 <pre><code>_generaLetteraSegnalazioni            → tutte le segnalazioni APERTA/LAVORAZIONE
-_generaLetteraSegnalazioniMese        → solo un mese specifico (editare MESE nel codice)
+_generaLetteraSegnalazioniMese        → solo un mese (editare MESE nel codice)
 </code></pre>
 
 <h3>Chiudi segnalazione risolta</h3>
-<p>Dalla tab SEGNALAZIONI: selezionare <strong>CHIUSA</strong> nella colonna A. La riga si sposta automaticamente in SEGNALAZIONI_CHIUSE.</p>
-<p>In alternativa via script (editare l'ID nel codice):</p>
-<pre><code>_chiudiSegnalazione   → es. 'SEG-0012'</code></pre>
-
-<h3>Report annuale</h3>
-<pre><code>_reconciliazioneAnnuale   → riepilogo per linea: provvigioni / fatture / pagamenti (editare ANNO)</code></pre>
+<p>Dalla tab SEGNALAZIONI: selezionare <strong>CHIUSA</strong> nella colonna A → la riga si sposta automaticamente in SEGNALAZIONI_CHIUSE.</p>
 
 <hr>
 
-<h2 id="frontend">6. Aggiornamento frontend</h2>
+<h2 id="frontend">6. Cache e aggiornamento frontend</h2>
 
 <table>
   <thead><tr><th>Scenario</th><th>Azione</th></tr></thead>
   <tbody>
-    <tr><td>Import mensile completato</td><td>flusso_3_genera (svuota cache GAS) → «Aggiorna tutto» nel frontend</td></tr>
-    <tr><td>Solo dati contratti modificati</td><td>«Aggiorna tutto» nel frontend (svuota anche GAS)</td></tr>
-    <tr><td>Frontend mostra dati vecchi</td><td>«Aggiorna tutto» → se ancora vecchi, clearAllCache da GAS poi riaggiorna</td></tr>
-    <tr><td>Deploy nuovo codice GAS</td><td>Sempre usare lo stesso deploymentId (non creare nuovi deployment)</td></tr>
+    <tr><td>Import completato (dati aggiornati su GAS)</td><td>Tasto <strong>Aggiorna</strong> in navbar → svuota localStorage e ricarica da GAS</td></tr>
+    <tr><td>Frontend mostra dati vecchi</td><td>Tasto Aggiorna → se ancora vecchi, <code>clearAllCache</code> da GAS poi riaggiorna</td></tr>
+    <tr><td>Deploy nuovo codice GAS</td><td>Sempre usare lo stesso deploymentId — non creare nuovi deployment</td></tr>
+    <tr><td>Riconciliazione avviata dal frontend</td><td>Cache riconciliazione svuotata automaticamente</td></tr>
   </tbody>
 </table>
 
-<div class="note">Il deployment ID attivo: <code>AKfycbzhJBtZ7-6pn5pCiRKQNHm1CeRLiNbXaiin-gfktPE0SL8b1-4KvFdTaFEBcsoYIlqv</code><br>
-Comando deploy: <code>clasp deploy --deploymentId &lt;ID&gt; --description "vNN-descrizione"</code></div>
+<div class="note">
+  <strong>TTL cache localStorage:</strong> Contratti e Clienti 15 min — Riconciliazione (tutti i tab) 30 min.<br>
+  <strong>Deploy ID attivo:</strong> <code>AKfycbzhJBtZ7-6pn5pCiRKQNHm1CeRLiNbXaiin-gfktPE0SL8b1-4KvFdTaFEBcsoYIlqv</code><br>
+  <strong>Comando deploy:</strong> <code>clasp deploy --deploymentId &lt;ID&gt; --description "vNN-descrizione"</code><br>
+  <strong>Attenzione:</strong> <code>clasp push</code> aggiorna il sorgente ma NON il web app — eseguire sempre anche <code>clasp deploy</code> dopo ogni push.
+</div>
 
 <hr>
 
@@ -184,33 +204,48 @@ Comando deploy: <code>clasp deploy --deploymentId &lt;ID&gt; --description "vNN-
   <tbody>
     <tr>
       <td>Frontend mostra dati vecchi</td>
-      <td>Cache localStorage o GAS non svuotata</td>
-      <td>«Aggiorna tutto» nel frontend</td>
+      <td>Cache localStorage non svuotata</td>
+      <td>Tasto <strong>Aggiorna</strong> in navbar</td>
+    </tr>
+    <tr>
+      <td>Riconciliazione mostra dati vecchi dopo import</td>
+      <td>Cache 30 min ancora valida</td>
+      <td>Avvia Riconciliazione (svuota cache automaticamente) oppure Aggiorna</td>
     </tr>
     <tr>
       <td>Nuovi contratti non compaiono</td>
       <td>Fase 2 non eseguita dopo l'import</td>
-      <td>Eseguire <code>flusso_2_popola</code> poi svuotare cache</td>
+      <td><code>flusso_2_popola</code> poi Aggiorna nel frontend</td>
     </tr>
     <tr>
       <td>Contratto triennale appare come due righe separate</td>
       <td><code>num_contratto</code> non assegnato o SYN_ non creata</td>
-      <td>Eseguire <code>_backfillNumContratto</code> (o <code>flusso_2_popola</code>)</td>
+      <td><code>_backfillNumContratto</code> (o <code>flusso_2_popola</code>)</td>
     </tr>
     <tr>
       <td>Data firma mancante o errata</td>
       <td><code>data_firma</code> non propagata da RENDICONTI</td>
-      <td>Eseguire <code>_backfillDataFirmaContratti</code> (incluso in flusso_2_popola)</td>
+      <td><code>_backfillDataFirmaContratti</code> (incluso in <code>flusso_2_popola</code>)</td>
+    </tr>
+    <tr>
+      <td>Firma ANOMALIA su contratto che sembra ok</td>
+      <td>Aliquota mancante in PRODOTTI (SENZA_ALIQ) o vecchio mandato</td>
+      <td>Verifica stato: SENZA_ALIQ = prodotto senza aliq in catalogo; VECCHIO_MANDATO = NC pre-24 mesi</td>
+    </tr>
+    <tr>
+      <td>Import CSV dal frontend fallisce</td>
+      <td>File non riconosciuto come dml* o dips148*</td>
+      <td>Verificare il nome file; usare la pipeline Python come alternativa</td>
+    </tr>
+    <tr>
+      <td>GAS mostra dati aggiornati ma frontend no</td>
+      <td>Web app su versione vecchia (clasp push senza clasp deploy)</td>
+      <td>Eseguire <code>clasp deploy --deploymentId &lt;ID&gt;</code> dopo ogni push GAS</td>
     </tr>
     <tr>
       <td>Molti OVER inattesi dopo aggiornaStati</td>
       <td>PRODOTTI non aggiornato o aliquote errate</td>
-      <td>Verificare tab PRODOTTI, poi ri-eseguire <code>_aggiornaStatiContratti</code></td>
-    </tr>
-    <tr>
-      <td>Molti ANOMALIA su contratti recenti</td>
-      <td>data_firma mancante (= data 0 o invalida)</td>
-      <td>Eseguire <code>_backfillDataFirmaContratti</code> poi <code>_aggiornaStatiContratti</code></td>
+      <td>Verificare tab PRODOTTI, poi <code>_aggiornaStatiContratti</code></td>
     </tr>
     <tr>
       <td>Badge SYN_ (senza n_doc) nel frontend</td>
@@ -218,18 +253,8 @@ Comando deploy: <code>clasp deploy --deploymentId &lt;ID&gt; --description "vNN-
       <td>Atteso; scomparirà al prossimo import quando SAP fornisce n_doc reale</td>
     </tr>
     <tr>
-      <td>Segnalazione già risolta compare ancora</td>
-      <td>Segnalazione non chiusa o CS non rigenerato</td>
-      <td>Selezionare CHIUSA nella col A (trigger automatico) oppure <code>_importaProblemiDaCS</code> dopo <code>_generaCS</code></td>
-    </tr>
-    <tr>
-      <td>Errore "Tab RENDICONTI mancante"</td>
-      <td><code>setupDB</code> non eseguito</td>
-      <td>Eseguire <code>setupDB</code> una volta sola</td>
-    </tr>
-    <tr>
-      <td>Fase 1 va in timeout</td>
-      <td>Troppi file CSV da importare in un'unica esecuzione</td>
+      <td>Fase 1 GAS va in timeout</td>
+      <td>Troppi file CSV da importare</td>
       <td>Rilanciarla (idempotente) oppure usare <code>_importaAnnoSlice</code> a blocchi</td>
     </tr>
   </tbody>
@@ -242,19 +267,13 @@ Comando deploy: <code>clasp deploy --deploymentId &lt;ID&gt; --description "vNN-
 <ol>
   <li>Eseguire <code>setupDB</code> → crea tutte le tab nel KS-DB</li>
   <li>Eseguire <code>populateProdotti</code> → popola il catalogo prodotti con le aliquote</li>
-  <li>Aprire <code>Codice.js</code> → funzione <code>_impostaCS</code> → sostituire <code>'ID_FOGLIO_CS'</code> con l'ID reale del Google Sheet CS → eseguire</li>
+  <li>Aprire <code>Codice.js</code> → <code>_impostaCS</code> → sostituire <code>'ID_FOGLIO_CS'</code> con l'ID reale del Google Sheet CS → eseguire</li>
   <li>Verificare gli ID cartelle Drive in <code>flusso.gs</code> (FOLDER_REND, FOLDER_F502, FOLDER_ESTR)</li>
-  <li>Eseguire l'import mensile completo (punto 1)</li>
+  <li>Impostare proprietà script <code>ESTRAZIONI_FOLDER_ID</code> per abilitare l'archiviazione Drive degli upload BudAnal (opzionale)</li>
+  <li>Eseguire il flusso mensile completo (punto 1)</li>
 </ol>
 
 <div class="tip">Il foglio CS è separato dal KS-DB. L'ID si trova nell'URL: <code>docs.google.com/spreadsheets/d/<strong>ID_QUI</strong>/edit</code></div>
-
-<div class="note">
-  <strong>Cartelle Drive configurate in <code>flusso.gs</code>:</strong><br>
-  Rendiconti / S148: <code>1ZUkyA3OnvJWGGb7UMxJk3RQI193K0ObB</code><br>
-  F502: <code>1TX2cZK2lNcXsDCuoi-eI-H_EDf2SM-nz</code><br>
-  Estrazioni BudAnal: <code>17MCZCjnag9YM479LGY_Fe-_HzYibDAvn</code>
-</div>
 
 </body>
 </html>

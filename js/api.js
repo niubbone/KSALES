@@ -26,7 +26,7 @@ async function apiPost(body) {
   var res = await fetch(CONFIG.APPS_SCRIPT_URL, {
     method: 'POST',
     redirect: 'follow',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(Object.assign({ token: 'ksales2026' }, body))
   });
   var text = await res.text();
@@ -99,5 +99,9 @@ var API = {
   avviaRiconciliazione:    function()             { return apiCall('avviaRiconciliazione'); },
   uploadEstrazione:        function(fileName, base64Content) {
     return apiPost({ action: 'importEstrazioneUpload', fileName: fileName, fileContent: base64Content });
+  },
+  uploadRendicontoCSV:     function(fileName, csvContent) {
+    var linea = /^dips148/i.test(fileName) ? 'S148' : '';
+    return apiPost({ action: 'importCsv', linea: linea, mese: '', fileName: fileName, csvContent: csvContent });
   }
 };
